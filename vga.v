@@ -160,7 +160,7 @@ module top (
                          begin
 			    colc <= colc+1;
                             // we need this ready for when colc == 15
- 		            char_address <= { ascii_mem[char], rowc[4:1] };
+ 		            char_address <= { ascii_mem[char+1], rowc[4:1] };
                          end
                        else 
 			 begin
