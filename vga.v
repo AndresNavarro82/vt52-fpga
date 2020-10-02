@@ -1,6 +1,7 @@
 `include "pll.v"
 `include "led_counter.v"
 `include "char_rom.v"
+`include "char_buffer.v"
 
 module top (
 	    input wire  pclk,
@@ -60,14 +61,10 @@ module top (
 
    reg [10:0]           char = 0;
 
-   reg [7:0]            ascii_mem[1999:0];
    reg [7:0]            char_row;
-   reg [11:0]           char_address;
+   wire [11:0]          char_address;
+   wire [7:0]           char_address_high;
 
-   initial
-     begin
-        $readmemh("pantalla/pantalla.hex", ascii_mem) ;
-     end
 
    // syncs, blanks & leds
    assign hsync = (hc >= hbp + hvisible + hfp)? hsync_on : hsync_off;
@@ -84,8 +81,18 @@ module top (
    led_counter myled_counter(vblank, {LED1, LED2, LED3, LED4, LED5});
    pll mypll(pclk,pll_clk,locked);
    assign clk = pll_clk;
-   wire [7:0] new_char_row;
-   char_rom mychar_rom(char_address, clk, new_char_row);
+   wire [7:0] next_char_row;
+   char_rom mychar_rom(char_address, clk, next_char_row);
+   reg [10:0] next_char;
+   // not used for now
+   wire [7:0] buffer_din;
+   wire       buffer_wen;
+   assign buffer_din = 8'b0;
+   assign buffer_wen = 1'b0;
+
+   char_buffer mychar_buffer(buffer_din, next_char, buffer_wen, clk, char_address_high);
+   // The address of the char row is formed with the char and the row offset
+   assign char_address = { char_address_high, rowc[4:1] };
 
    always @(posedge clk or posedge clr)
      begin
@@ -150,8 +157,8 @@ module top (
 		    begin
 		       col <= 0;
 		       colc <= 0;
- 		       char_address <= { ascii_mem[char], rowc[4:1] };
-                       char_row <= new_char_row;
+                       next_char <= char;
+                       char_row <= next_char_row;
 		    end
 		  else
 		    // update char col if in active area
@@ -160,14 +167,14 @@ module top (
                          begin
 			    colc <= colc+1;
                             // we need this ready for when colc == 15
- 		            char_address <= { ascii_mem[char+1], rowc[4:1] };
+                            next_char <= char+1;
                          end
                        else 
 			 begin
 			    colc <= 0;
 			    col <= col+1;
 			    char <= char + 1;
-                            char_row <= new_char_row;
+                            char_row <= next_char_row;
 			 end
 		    end // else: !if(hblank || vblank)
 	       end // else: !if(hc == hpixels)
