@@ -1,5 +1,6 @@
 `include "pll.v"
 `include "led_counter.v"
+`include "char_rom.v"
 
 module top (
 	    input wire  pclk,
@@ -14,30 +15,29 @@ module top (
 	    output wire LED5,
             );
 
-    // VESA Signal 1280 x 1024 @ 60 Hz timing (native res for a LG LX40 17" lcd)
-    // from http://tinyvga.com/vga-timing/1280x1024@75Hz
-    parameter hpixels = 1688; // horizontal pixels per line
-    parameter hbp = 248; 	// horizontal back porch
-    parameter hvisible = 1280; // horizontal visible area pixels
-    parameter hfp = 48; 	// horizontal front porch
-    parameter hpulse = 112;	// hsync pulse length
+   // VESA Signal 1280 x 1024 @ 60 Hz timing (native res for a LG LX40 17" lcd)
+   // from http://tinyvga.com/vga-timing/1280x1024@75Hz
+   parameter hpixels = 1688; // horizontal pixels per line
+   parameter hbp = 248; 	// horizontal back porch
+   parameter hvisible = 1280; // horizontal visible area pixels
+   parameter hfp = 48; 	// horizontal front porch
+   parameter hpulse = 112;	// hsync pulse length
 
-    parameter vlines = 1066; // vertical lines per frame
-// XXX removed some lines so that a centered area of 800 lines 
-// (25 lines of 32 pixels) 
-    parameter vbp = 38+112; 	// vertical back porch
-    parameter vvisible = 1024-224; // vertical visible area lines
-    parameter vfp = 1+112; 	// vertical front porch
-// 
-//    parameter vbp = 38; 	// vertical back porch
-//    parameter vvisible = 1024; // vertical visible area lines
-//    parameter vfp = 1; 	// vertical front porch
-    parameter vpulse = 3; 	// vsync pulse length
+   parameter vlines = 1066; // vertical lines per frame
+   // XXX removed some lines so that a centered area of 800 lines
+   // (25 lines of 32 pixels)
+   parameter vbp = 38+112; 	// vertical back porch
+   parameter vvisible = 1024-224; // vertical visible area lines
+   parameter vfp = 1+112; 	// vertical front porch
+   //
+   //    parameter vbp = 38; 	// vertical back porch
+   //    parameter vvisible = 1024; // vertical visible area lines
+   //    parameter vfp = 1; 	// vertical front porch
+   parameter vpulse = 3; 	// vsync pulse length
 
    parameter video_on = 1'b1;
    parameter hsync_on = 1'b1;
    parameter vsync_on = 1'b1;
-
    
    localparam hsync_off = ~hsync_on;
    localparam video_off = ~video_on;
@@ -52,39 +52,27 @@ module top (
    wire                 video_out;
    wire                 vblank, hblank;
    
-   
-   pll mypll(pclk,pll_clk,locked);
-   assign clk = pll_clk;
-   
-   
+   reg [5:0]            row = 0;
+   reg [6:0]            col = 0;
 
-// XXX chars
+   reg [3:0]            colc = 0;
+   reg [4:0]            rowc = 0;
 
-reg [5:0] row = 0;
-reg [6:0] col = 0;
+   reg [10:0]           char = 0;
 
-reg [3:0] colc = 0;
-reg [4:0] rowc = 0;
+   reg [7:0]            ascii_mem[1999:0];
+   reg [7:0]            char_row;
+   reg [11:0]           char_address;
 
-reg [10:0] char = 0;
+   initial
+     begin
+        $readmemh("pantalla/pantalla.hex", ascii_mem) ;
+     end
 
-reg[7:0] char_mem[4095:0];
-reg[7:0] ascii_mem[1999:0];
-reg[7:0] char_row;
-reg[7:0] new_char_row;
-reg[11:0] char_address;
-
-initial 
-begin
-   $readmemh("pantalla/pantalla.hex", ascii_mem) ;
-   $readmemh("font/terminus_816_latin1.hex", char_mem) ;
-end
-
-// XXX /chars
-   
    // syncs, blanks & leds
    assign hsync = (hc >= hbp + hvisible + hfp)? hsync_on : hsync_off;
    assign vsync = (vc >= vbp + vvisible + vfp)? vsync_on : vsync_off;
+
 
    // blank wires to simplify some expressions later
    assign hblank = (hc < hbp || hc >= hbp + hvisible);
@@ -92,8 +80,12 @@ end
 
    assign video_out = char_row[7-(colc>>1)];
    assign video = (hblank || vblank)? video_off : video_out;
-                 
+
    led_counter myled_counter(vblank, {LED1, LED2, LED3, LED4, LED5});
+   pll mypll(pclk,pll_clk,locked);
+   assign clk = pll_clk;
+   wire [7:0] new_char_row;
+   char_rom mychar_rom(char_address, clk, new_char_row);
 
    always @(posedge clk or posedge clr)
      begin
@@ -103,10 +95,10 @@ end
 	     hc <= 0;
 	     vc <= 0;
              // char
-		row <= 0;
-		col <= 0;
-		colc <= 0;
-		rowc <= 0;
+	     row <= 0;
+	     col <= 0;
+	     colc <= 0;
+	     rowc <= 0;
              // /char
  	  end
 	else
@@ -158,8 +150,7 @@ end
 		    begin
 		       col <= 0;
 		       colc <= 0;
- 		       char_address <= ascii_mem[char]<<4;
-		       new_char_row <= char_mem[char_address+(rowc>>1)];		
+ 		       char_address <= { ascii_mem[char], rowc[4:1] };
                        char_row <= new_char_row;
 		    end
 		  else
@@ -169,8 +160,7 @@ end
                          begin
 			    colc <= colc+1;
                             // we need this ready for when colc == 15
-                            char_address <= (ascii_mem[char+1]<<4);
-			    new_char_row <= char_mem[char_address+(rowc>>1)];		
+ 		            char_address <= { ascii_mem[char], rowc[4:1] };
                          end
                        else 
 			 begin
