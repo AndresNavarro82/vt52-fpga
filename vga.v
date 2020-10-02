@@ -51,6 +51,9 @@ module top (
    assign char_address = { char_address_high, rowc[4:1] };
    // only emit video on non-blanking, select pixel according to column
    assign video_out = char_row[7-(colc>>1)];
+   parameter video_on = 1'b1;
+   localparam video_off = ~video_on;
+
    assign video = (hblank || vblank)? video_off : video_out;
 
    // TODO refactor and move to new file

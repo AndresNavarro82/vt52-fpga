@@ -13,7 +13,7 @@ module sync_generator (
 		       output wire       vblank,
                        output reg [10:0] hc,
                        output reg [10:0] vc,
-                       output wire       px_clk,
+                       output wire       px_clk
 		       );
 
    // VESA Signal 1280 x 1024 @ 60 Hz timing (native res for a LG LX40 17" lcd)
@@ -36,12 +36,10 @@ module sync_generator (
    //    parameter vfp = 1; 	// vertical front porch
    parameter vpulse = 3; 	// vsync pulse lengt
 
-   parameter video_on = 1'b1;
    parameter hsync_on = 1'b1;
    parameter vsync_on = 1'b1;
 
    localparam hsync_off = ~hsync_on;
-   localparam video_off = ~video_on;
    localparam vsync_off = ~vsync_on;
 
    wire locked;
