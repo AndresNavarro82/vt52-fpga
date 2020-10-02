@@ -80,7 +80,7 @@ module top (
                   if (col == 0)
                     begin
                        // we need a couple of passes of this
-                       next_char = char;
+                       next_char <= char;
                        char_row <= next_char_row;
                     end
                   else
@@ -92,8 +92,6 @@ module top (
 			 begin
                             // we are moving to the next row, so char
                             // is already set at the correct value
-                            // next_char <= char;
-                            next_char <= char;
 			    row <= row + 1;
 			    rowc <= 0;
                          end
@@ -101,7 +99,6 @@ module top (
 			 begin
                             // we are still on the same row, so
                             // go back to the first char in this line
-			    next_char <= char - 80;
                             char = char - 80;
                             row <= row;
 			    rowc <= rowc + 1;
@@ -114,14 +111,14 @@ module top (
 		  if (colc < 15)
                     begin
 		       colc <= colc+1;
-                       // we need this ready for when colc == 15
-                       next_char <= char+1;
+                       if (colc == 0) // we need this as soon as possible
+                         next_char <= char+1;
                     end
                   else
 		    begin
 		       colc <= 0;
 		       col <= col+1;
-		       char <= char + 1;
+                       char <= char + 1;
                        char_row <= next_char_row;
 		    end // else: !if(colc < 15)
                end // else: !if(hblank)

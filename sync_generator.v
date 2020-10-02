@@ -12,7 +12,7 @@ module sync_generator (
                        output reg [10:0] vc,
                        output wire       px_clk,
 		       );
-   
+
    // VESA Signal 1280 x 1024 @ 60 Hz timing (native res for a LG LX40 17" lcd)
    // from http://tinyvga.com/vga-timing/1280x1024@75Hz
    parameter hpixels = 1688; // horizontal pixels per line
@@ -36,7 +36,7 @@ module sync_generator (
    parameter video_on = 1'b1;
    parameter hsync_on = 1'b1;
    parameter vsync_on = 1'b1;
-   
+
    localparam hsync_off = ~hsync_on;
    localparam video_off = ~video_on;
    localparam vsync_off = ~vsync_on;
@@ -46,7 +46,7 @@ module sync_generator (
 
    // TODO refactor (maybe set next_hc, next_vc in always @*, and do
    // sync & blanks there too)
-   
+
    // syncs & blanks
    assign hsync = (hc >= hbp + hvisible + hfp)? hsync_on : hsync_off;
    assign vsync = (vc >= vbp + vvisible + vfp)? vsync_on : vsync_off;
@@ -72,9 +72,9 @@ module sync_generator (
 		       vc <= 0;
 		  else
 		       vc <= vc + 1;
-	       end 
+	       end
              else
 	       hc <= hc + 1;
           end // else: !if(clr == 1)
-     end // always @ (posedge px_clk or posedge clr)   
+     end // always @ (posedge px_clk or posedge clr)
 endmodule
