@@ -2,10 +2,11 @@
 `include "led_counter.v"
 `include "char_rom.v"
 `include "char_buffer.v"
+`include "sync_generator.v"
 
 module top (
-	    input wire  pclk,
-	    input wire  clr, //asynchronous reset
+	    input       pclk,
+	    input       clr, //asynchronous reset
 	    output wire hsync,
 	    output wire vsync,
 	    output wire video,
@@ -16,40 +17,11 @@ module top (
 	    output wire LED5,
             );
 
-   // VESA Signal 1280 x 1024 @ 60 Hz timing (native res for a LG LX40 17" lcd)
-   // from http://tinyvga.com/vga-timing/1280x1024@75Hz
-   parameter hpixels = 1688; // horizontal pixels per line
-   parameter hbp = 248; 	// horizontal back porch
-   parameter hvisible = 1280; // horizontal visible area pixels
-   parameter hfp = 48; 	// horizontal front porch
-   parameter hpulse = 112;	// hsync pulse length
+   // for storing the horizontal & vertical counters
+   wire [10:0]           hc;
+   wire [10:0]           vc;
 
-   parameter vlines = 1066; // vertical lines per frame
-   // XXX removed some lines so that a centered area of 800 lines
-   // (25 lines of 32 pixels)
-   parameter vbp = 38+112; 	// vertical back porch
-   parameter vvisible = 1024-224; // vertical visible area lines
-   parameter vfp = 1+112; 	// vertical front porch
-   //
-   //    parameter vbp = 38; 	// vertical back porch
-   //    parameter vvisible = 1024; // vertical visible area lines
-   //    parameter vfp = 1; 	// vertical front porch
-   parameter vpulse = 3; 	// vsync pulse length
-
-   parameter video_on = 1'b1;
-   parameter hsync_on = 1'b1;
-   parameter vsync_on = 1'b1;
-   
-   localparam hsync_off = ~hsync_on;
-   localparam video_off = ~video_on;
-   localparam vsync_off = ~vsync_on;
-
-   // registers for storing the horizontal & vertical counters
-   reg [10:0]           hc = 0;
-   reg [10:0]           vc = 0;
-
-   wire                 pll_clk, locked;
-   wire                 clk;
+   wire                 px_clk;
    wire                 video_out;
    wire                 vblank, hblank;
    
@@ -65,119 +37,94 @@ module top (
    wire [11:0]          char_address;
    wire [7:0]           char_address_high;
 
+   wire [7:0] next_char_row;
+   reg [10:0] next_char;
+   // write function not used for now
+   wire [7:0] buffer_din = 8'b0;
+   wire       buffer_wen = 1'b0;
 
-   // syncs, blanks & leds
-   assign hsync = (hc >= hbp + hvisible + hfp)? hsync_on : hsync_off;
-   assign vsync = (vc >= vbp + vvisible + vfp)? vsync_on : vsync_off;
+   sync_generator mysync_generator(pclk, clr, hsync, vsync, hblank, vblank, hc, vc, px_clk);
+   led_counter myled_counter(vblank, {LED1, LED2, LED3, LED4, LED5});
+   char_buffer mychar_buffer(buffer_din, next_char, buffer_wen, px_clk, char_address_high);
+   char_rom mychar_rom(char_address, px_clk, next_char_row);
 
-
-   // blank wires to simplify some expressions later
-   assign hblank = (hc < hbp || hc >= hbp + hvisible);
-   assign vblank = (vc < vbp || vc >= vbp + vvisible);
-
+   // The address of the char row is formed with the char and the row offset
+   assign char_address = { char_address_high, rowc[4:1] };
+   // only emit video on non-blanking, select pixel according to column
    assign video_out = char_row[7-(colc>>1)];
    assign video = (hblank || vblank)? video_off : video_out;
 
-   led_counter myled_counter(vblank, {LED1, LED2, LED3, LED4, LED5});
-   pll mypll(pclk,pll_clk,locked);
-   assign clk = pll_clk;
-   wire [7:0] next_char_row;
-   char_rom mychar_rom(char_address, clk, next_char_row);
-   reg [10:0] next_char;
-   // not used for now
-   wire [7:0] buffer_din;
-   wire       buffer_wen;
-   assign buffer_din = 8'b0;
-   assign buffer_wen = 1'b0;
-
-   char_buffer mychar_buffer(buffer_din, next_char, buffer_wen, clk, char_address_high);
-   // The address of the char row is formed with the char and the row offset
-   assign char_address = { char_address_high, rowc[4:1] };
-
-   always @(posedge clk or posedge clr)
+   // TODO refactor and move to new file
+   always @(posedge px_clk or posedge clr)
      begin
 	// reset condition
 	if (clr == 1)
 	  begin
-	     hc <= 0;
-	     vc <= 0;
-             // char
 	     row <= 0;
 	     col <= 0;
 	     colc <= 0;
 	     rowc <= 0;
-             // /char
  	  end
 	else
 	  begin
-             if (hc == hpixels)
-               // end of line reached
-	       begin
-		  hc <= 0;
-		  if (vc == vlines)
-                    // end of screen reached, go back
+             if (vblank)
+               begin
+	          row <= 0;
+	          col <= 0;
+	          colc <= 0;
+	          rowc <= 0;
+		  char <= 0;
+               end
+             else if (hblank)
+               begin
+                  if (col == 0)
                     begin
-		       vc <= 0;
-		       char <= 0;
+                       // we need a couple of passes of this
+                       next_char = char;
+                       char_row <= next_char_row;
                     end
-		  else
-		    begin
-		       vc <= vc + 1;
-                       
-                       // char management
-                       // no need to set char row or address here, already set during
-                       // blank periods
-                       if (!vblank) 
+                  else
+                    begin
+                       // only do this once per line
+                       col <= 0;
+                       colc <= 0;
+		       if (rowc == 31)
 			 begin
-			    if (rowc < 31)
-			      begin
-                                 // we are still on the same row, so
-                                 // go back to the first char in this line
-				 char <= char - 80;
-				 rowc <= rowc + 1;
-                              end
-			    else
-			      begin
-                                 // we are moving to the next row, so char
-                                 // is already set at the correct value
-				 row <= row + 1;
-				 rowc <= 0;
-			      end // else: !if(rowc < 31)
-			 end // if (!vblank)
-		    end // else: !if(vc == vlines)
-	       end // if (hc == hpixels)
+                            // we are moving to the next row, so char
+                            // is already set at the correct value
+                            // next_char <= char;
+                            next_char <= char;
+			    row <= row + 1;
+			    rowc <= 0;
+                         end
+		       else
+			 begin
+                            // we are still on the same row, so
+                            // go back to the first char in this line
+			    next_char <= char - 80;
+                            char = char - 80;
+                            row <= row;
+			    rowc <= rowc + 1;
+			 end // else: !if(rowc == 31)
+                    end // if (col != 0)
+               end // if (hblank)
              else
 	       begin
-		  hc <= hc + 1;
-                  // char
-		  if (hblank || vblank)
-                    // char_row will need several passes of this code
-                    // in order to get the correct value, but we
-                    // have plenty of time.
+		  // update char col if in active area
+		  if (colc < 15)
+                    begin
+		       colc <= colc+1;
+                       // we need this ready for when colc == 15
+                       next_char <= char+1;
+                    end
+                  else
 		    begin
-		       col <= 0;
 		       colc <= 0;
-                       next_char <= char;
+		       col <= col+1;
+		       char <= char + 1;
                        char_row <= next_char_row;
-		    end
-		  else
-		    // update char col if in active area
-		    begin
-		       if (colc < 15)
-                         begin
-			    colc <= colc+1;
-                            // we need this ready for when colc == 15
-                            next_char <= char+1;
-                         end
-                       else 
-			 begin
-			    colc <= 0;
-			    col <= col+1;
-			    char <= char + 1;
-                            char_row <= next_char_row;
-			 end
-		    end // else: !if(hblank || vblank)
-	       end // else: !if(hc == hpixels)
+		    end // else: !if(colc < 15)
+               end // else: !if(hblank)
           end // else: !if(clr == 1)
-     end // always @ (posedge clk or posedge clr)
+     end // always @ (posedge px_clk or posedge clr)
 endmodule
