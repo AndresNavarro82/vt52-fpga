@@ -24,13 +24,31 @@ module top (
    wire                 video_out;
    wire                 vblank, hblank;
    
-   reg [5:0]            row = 0;
+   reg [4:0]            row = 0;
    reg [6:0]            col = 0;
 
    reg [3:0]            colc = 0;
    reg [4:0]            rowc = 0;
 
    reg [10:0]           char = 0;
+
+   // cursor
+   reg [6:0]            cursor_x = 0;
+   reg [4:0]            cursor_y = 0;
+   reg [5:0]            cursor_blink_counter = 0;
+   reg                  cursor_blink_counter_flag = 0;
+   wire                 cursor_blink_on;
+
+   // blinks about once a second
+   assign cursor_blink_on = cursor_blink_counter[5];
+   wire                 is_under_cursor;
+   assign is_under_cursor = (cursor_x == col) & (cursor_y == row);
+   wire                 cursor_xor;
+   // invert video when we are under the cursor & it's blinking
+   assign cursor_xor = is_under_cursor & cursor_blink_on;
+
+   // /cursor
+
 
    reg [7:0]            char_row;
    wire [11:0]          char_address;
@@ -50,7 +68,7 @@ module top (
    // The address of the char row is formed with the char and the row offset
    assign char_address = { char_address_high, rowc[4:1] };
    // only emit video on non-blanking, select pixel according to column
-   assign video_out = char_row[7-(colc>>1)];
+   assign video_out = char_row[7-(colc>>1)] ^ cursor_xor;
    parameter video_on = 1'b1;
    localparam video_off = ~video_on;
 
@@ -66,6 +84,12 @@ module top (
 	     col <= 0;
 	     colc <= 0;
 	     rowc <= 0;
+             // cursor
+             cursor_blink_counter <= 0;
+             cursor_blink_counter_flag <= 0;
+             cursor_y <= 0;
+             cursor_x <= 0;
+             // /cursor
  	  end
 	else
 	  begin
@@ -76,6 +100,13 @@ module top (
 	          colc <= 0;
 	          rowc <= 0;
 		  char <= 0;
+                  // cursor  XXX maybe use vblank as clock?
+                  if (!cursor_blink_counter_flag)
+                    begin
+                       cursor_blink_counter_flag <= 1;
+                       cursor_blink_counter <= cursor_blink_counter + 1;
+                    end
+                  // /cursor
                end
              else if (hblank)
                begin
@@ -109,6 +140,9 @@ module top (
                end // if (hblank)
              else
 	       begin
+                  // cursor
+                  cursor_blink_counter_flag <= 0;
+                  // /cursor
 		  // update char col if in active area
 		  if (colc < 15)
                     begin
