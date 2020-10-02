@@ -80,7 +80,6 @@ module top (
                   if (col == 0)
                     begin
                        // we need a couple of passes of this
-                       next_char <= char;
                        char_row <= next_char_row;
                     end
                   else
@@ -99,7 +98,8 @@ module top (
 			 begin
                             // we are still on the same row, so
                             // go back to the first char in this line
-                            char = char - 80;
+                            char <= char - 80;
+                            next_char <= char - 80;
                             row <= row;
 			    rowc <= rowc + 1;
 			 end // else: !if(rowc == 31)
