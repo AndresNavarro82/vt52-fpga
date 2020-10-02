@@ -1,50 +1,5 @@
-// 1280x1024@60Hz
-/**
- * PLL configuration
- *
- * This Verilog module was generated automatically
- * using the icepll tool from the IceStorm project.
- * Use at your own risk.
- *
- * Given input frequency:        12.000 MHz
- * Requested output frequency:  108.000 MHz
- * Achieved output frequency:   108.000 MHz
- */
-
-module pll(
-	input  clock_in,
-	output clock_out,
-	output locked
-	);
-
-SB_PLL40_CORE #(
-		.FEEDBACK_PATH("SIMPLE"),
-		.DIVR(4'b0000),		// DIVR =  0
-		.DIVF(7'b1000111),	// DIVF = 71
-		.DIVQ(3'b011),		// DIVQ =  3
-		.FILTER_RANGE(3'b001)	// FILTER_RANGE = 1
-	) uut (
-		.LOCK(locked),
-		.RESETB(1'b1),
-		.BYPASS(1'b0),
-		.REFERENCECLK(clock_in),
-		.PLLOUTCORE(clock_out)
-		);
-
-endmodule
-
-module led_divider(
-                   input wire  clk_in,
-                   output wire [4:0] led_out
-                   );
-
-   reg [9:0]                   counter = 10'b0;   
-   always @(posedge clk_in)
-     begin
-        counter <= counter + 1;
-     end
-   assign led_out = counter[9:5];   
-endmodule
+`include "pll.v"
+`include "led_counter.v"
 
 module top (
 	    input wire  pclk,
@@ -138,7 +93,7 @@ end
    assign video_out = char_row[7-(colc>>1)];
    assign video = (hblank || vblank)? video_off : video_out;
                  
-   led_divider myled_divider(vblank, {LED1, LED2, LED3, LED4, LED5});   
+   led_counter myled_counter(vblank, {LED1, LED2, LED3, LED4, LED5});
 
    always @(posedge clk or posedge clr)
      begin
