@@ -4,9 +4,10 @@ NAME = vga
 MDIR1 := font
 MDIR2 := pantalla
 MEMS := $(wildcard $(MDIR1)/*.hex) $(wildcard $(MDIR2)/*.hex)
-SRCS := $(wildcard *.c)
+SRCS := $(wildcard *.v)
 
-.PHONY: all
+.PHONY: all clean
+
 all: $(NAME).bin
 
 prog: $(NAME).bin
