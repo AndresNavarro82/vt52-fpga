@@ -1,3 +1,5 @@
+`include "pll.v"
+
 /**
  * VGA sync generator
  */

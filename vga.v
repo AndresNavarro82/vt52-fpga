@@ -1,4 +1,3 @@
-`include "pll.v"
 `include "led_counter.v"
 `include "char_rom.v"
 `include "char_buffer.v"
