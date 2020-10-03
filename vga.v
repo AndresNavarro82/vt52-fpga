@@ -3,6 +3,7 @@
 `include "char_buffer.v"
 `include "sync_generator.v"
 `include "cursor_blinker.v"
+`include "cursor_position.v"
 
 module top (
 	    input       pclk,
@@ -27,20 +28,15 @@ module top (
    
    reg [3:0]            row = 0;
    reg [5:0]            col = 0;
-
    reg [2:0]            colc = 0;
    reg [3:0]            rowc = 0;
 
-   reg [9:0]           char = 0;
-
-   // cursor
-   reg [3:0]            cursor_y = 0;
-   reg [5:0]            cursor_x = 0;
-   wire                 cursor_blink_on;
-   // /cursor
+   reg [9:0]            char = 0;
    reg [7:0]            char_row;
-   wire [11:0]          char_address;
    wire [7:0]           char_address_high;
+   wire [11:0]          char_address;
+
+   wire                 cursor_blink_on;
 
    wire [7:0] next_char_row;
    reg [9:0] next_char;
@@ -50,11 +46,19 @@ module top (
 
    reg        hsync_flag = 0;
 
+   wire [3:0] cursor_y;
+   reg [3:0]  new_cursor_y;
+   wire [5:0] cursor_x;
+   reg [5:0]  new_cursor_x;
+   reg        write_cursor_pos;
+
    sync_generator mysync_generator(pclk, clr, hsync, vsync, hblank, vblank, hc, vc, px_clk);
    led_counter myled_counter(vblank, {LED1, LED2, LED3, LED4, LED5});
    char_buffer mychar_buffer(buffer_din, next_char, buffer_wen, px_clk, char_address_high);
    char_rom mychar_rom(char_address, px_clk, next_char_row);
    cursor_blinker mycursor_blinker(vblank, clr, cursor_blink_on);
+   cursor_position #(.SIZE(6)) mycursor_x (px_clk, clr, new_cursor_x, write_cursor_pos, cursor_x);
+   cursor_position #(.SIZE(4)) mycursor_y (px_clk, clr, new_cursor_y, write_cursor_pos, cursor_y);
 
    // The address of the char row is formed with the char and the row offset
    assign char_address = { char_address_high, rowc };
@@ -62,9 +66,9 @@ module top (
    parameter video_on = 1'b1;
    localparam video_off = ~video_on;
 
-   wire                 is_under_cursor;
+   wire       is_under_cursor;
    assign is_under_cursor = (cursor_x == col) & (cursor_y == row);
-   wire                 cursor_xor;
+   wire       cursor_xor;
    // invert video when we are under the cursor & it's blinking
    assign cursor_xor = is_under_cursor & cursor_blink_on;
 
@@ -83,8 +87,9 @@ module top (
 	     colc <= 0;
 	     rowc <= 0;
              // cursor
-             cursor_y <= 0;
-             cursor_x <= 0;
+             new_cursor_y <= 0;
+             new_cursor_x <= 0;
+             write_cursor_pos <= 0;
              // /cursor
              hsync_flag = 0;
  	  end
