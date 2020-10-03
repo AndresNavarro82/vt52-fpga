@@ -42,7 +42,9 @@ module top (
    reg [9:0] next_char;
    // write function not used for now
    wire [7:0] buffer_din = 8'b0;
+   wire [9:0] buffer_waddr = 10'b0;
    wire       buffer_wen = 1'b0;
+   wire       buffer_ren = 1'b1;
 
    reg        hsync_flag = 0;
 
@@ -54,7 +56,7 @@ module top (
 
    sync_generator mysync_generator(pclk, clr, hsync, vsync, hblank, vblank, hc, vc, px_clk);
    led_counter myled_counter(vblank, {LED1, LED2, LED3, LED4, LED5});
-   char_buffer mychar_buffer(buffer_din, next_char, buffer_wen, px_clk, char_address_high);
+   char_buffer mychar_buffer(buffer_din, buffer_waddr, buffer_wen, px_clk, next_char, char_address_high, buffer_ren);
    char_rom mychar_rom(char_address, px_clk, next_char_row);
    cursor_blinker mycursor_blinker(vblank, clr, cursor_blink_on);
    cursor_position #(.SIZE(6)) mycursor_x (px_clk, clr, new_cursor_x, write_cursor_pos, cursor_x);
