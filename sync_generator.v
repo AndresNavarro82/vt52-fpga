@@ -16,32 +16,32 @@ module sync_generator (
                        output wire       px_clk
 		       );
 
-   // VESA Signal 1280 x 1024 @ 60 Hz timing (native res for a LG LX40 17" lcd)
-   // from http://tinyvga.com/vga-timing/1280x1024@75Hz
-   parameter hpixels = 1688; // horizontal pixels per line
+   // VGA Signal 640x480 @ 60 Hz timing
+   // from http://tinyvga.com/vga-timing/640x480@60Hz
+   parameter hpixels = 800; // horizontal pixels per line
    // XXX removed some columns to leave just 64 lines of 8 pixels (512)
-   parameter hbp = 248 + 384; 	// horizontal back porch
-   parameter hvisible = 1280 - (2*384); // horizontal visible area pixels
-   parameter hfp = 48 + 384; 	// horizontal front porch
-//   parameter hbp = 248; 	// horizontal back porch
-//   parameter hvisible = 1280; // horizontal visible area pixels
-//   parameter hfp = 48; 	// horizontal front porch
-   parameter hpulse = 112;	// hsync pulse length
+   parameter hbp = 48 + 64; 	// horizontal back porch
+   parameter hvisible = 640 - 128; // horizontal visible area pixels
+   parameter hfp = 16 + 64; 	// horizontal front porch
+//   parameter hbp = 48; 	// horizontal back porch
+//   parameter hvisible = 640; // horizontal visible area pixels
+//   parameter hfp = 16; 	// horizontal front porch
+   parameter hpulse = 96;	// hsync pulse length
 
-   parameter vlines = 1066; // vertical lines per frame
+   parameter vlines = 525; // vertical lines per frame
    // XXX removed some lines to leave just 16 lines of 16 pixels (256)
-   parameter vbp = 38+384; 	// vertical back porch
-   parameter vvisible = 1024-(2*384); // vertical visible area lines
-   parameter vfp = 1+384; 	// vertical front porch
+   parameter vbp = 33+112; 	// vertical back porch
+   parameter vvisible = 480 - 224; // vertical visible area lines
+   parameter vfp = 10+112; 	// vertical front porch
    // (25 lines of 32 pixels)
    //
-   //    parameter vbp = 38; 	// vertical back porch
-   //    parameter vvisible = 1024; // vertical visible area lines
-   //    parameter vfp = 1; 	// vertical front porch
-   parameter vpulse = 3; 	// vsync pulse lengt
+   //    parameter vbp = 33; 	// vertical back porch
+   //    parameter vvisible = 480; // vertical visible area lines
+   //    parameter vfp = 10; 	// vertical front porch
+   parameter vpulse = 2; 	// vsync pulse length
 
-   parameter hsync_on = 1'b1;
-   parameter vsync_on = 1'b1;
+   parameter hsync_on = 1'b0;
+   parameter vsync_on = 1'b0;
 
    localparam hsync_off = ~hsync_on;
    localparam vsync_off = ~vsync_on;
