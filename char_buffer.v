@@ -1,14 +1,14 @@
 /**
- * Char Buffer RAM (2kx8)
- * Only 2000 positions used (25 lines of 80 characters)
+ * Char Buffer RAM (1kx8)
+ * (16 lines of 64 characters)
  */
 module char_buffer (din, addr, write_en, clk, dout);
-   input [10:0] addr;
+   input [9:0] addr;
    input [7:0] din;
    input 		  write_en, clk;
    output [7:0] dout;
    reg [7:0]    dout; // Register for output.
-   reg [7:0]    mem [2047:0];
+   reg [7:0]    mem [1023:0];
 
    initial
      begin

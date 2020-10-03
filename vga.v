@@ -24,17 +24,17 @@ module top (
    wire                 video_out;
    wire                 vblank, hblank;
    
-   reg [4:0]            row = 0;
-   reg [6:0]            col = 0;
+   reg [3:0]            row = 0;
+   reg [5:0]            col = 0;
 
-   reg [3:0]            colc = 0;
-   reg [4:0]            rowc = 0;
+   reg [2:0]            colc = 0;
+   reg [3:0]            rowc = 0;
 
-   reg [10:0]           char = 0;
+   reg [9:0]           char = 0;
 
    // cursor
-   reg [6:0]            cursor_x = 0;
-   reg [4:0]            cursor_y = 0;
+   reg [3:0]            cursor_y = 0;
+   reg [5:0]            cursor_x = 0;
    reg [5:0]            cursor_blink_counter = 0;
    reg                  cursor_blink_counter_flag = 0;
    wire                 cursor_blink_on;
@@ -55,10 +55,12 @@ module top (
    wire [7:0]           char_address_high;
 
    wire [7:0] next_char_row;
-   reg [10:0] next_char;
+   reg [9:0] next_char;
    // write function not used for now
    wire [7:0] buffer_din = 8'b0;
    wire       buffer_wen = 1'b0;
+
+   reg        hsync_flag = 0;
 
    sync_generator mysync_generator(pclk, clr, hsync, vsync, hblank, vblank, hc, vc, px_clk);
    led_counter myled_counter(vblank, {LED1, LED2, LED3, LED4, LED5});
@@ -66,9 +68,10 @@ module top (
    char_rom mychar_rom(char_address, px_clk, next_char_row);
 
    // The address of the char row is formed with the char and the row offset
-   assign char_address = { char_address_high, rowc[4:1] };
+   assign char_address = { char_address_high, rowc };
    // only emit video on non-blanking, select pixel according to column
-   assign video_out = char_row[7-(colc>>1)] ^ cursor_xor;
+   assign video_out = char_row[7-colc] ^ cursor_xor;
+
    parameter video_on = 1'b1;
    localparam video_off = ~video_on;
 
@@ -90,6 +93,7 @@ module top (
              cursor_y <= 0;
              cursor_x <= 0;
              // /cursor
+             hsync_flag = 0;
  	  end
 	else
 	  begin
@@ -110,7 +114,7 @@ module top (
                end
              else if (hblank)
                begin
-                  if (col == 0)
+                  if (hsync_flag == 0)
                     begin
                        // we need a couple of passes of this
                        char_row <= next_char_row;
@@ -118,9 +122,10 @@ module top (
                   else
                     begin
                        // only do this once per line
+                       hsync_flag <= 0;
                        col <= 0;
                        colc <= 0;
-		       if (rowc == 31)
+		       if (rowc == 15)
 			 begin
                             // we are moving to the next row, so char
                             // is already set at the correct value
@@ -131,11 +136,11 @@ module top (
 			 begin
                             // we are still on the same row, so
                             // go back to the first char in this line
-                            char <= char - 80;
-                            next_char <= char - 80;
+                            char <= char - 64;
+                            next_char <= char - 64;
                             row <= row;
 			    rowc <= rowc + 1;
-			 end // else: !if(rowc == 31)
+			 end // else: !if(rowc == 15)
                     end // if (col != 0)
                end // if (hblank)
              else
@@ -143,8 +148,9 @@ module top (
                   // cursor
                   cursor_blink_counter_flag <= 0;
                   // /cursor
+                  hsync_flag <= 1;
 		  // update char col if in active area
-		  if (colc < 15)
+		  if (colc < 7)
                     begin
 		       colc <= colc+1;
                        if (colc == 0) // we need this as soon as possible
@@ -156,7 +162,7 @@ module top (
 		       col <= col+1;
                        char <= char + 1;
                        char_row <= next_char_row;
-		    end // else: !if(colc < 15)
+		    end // else: !if(colc < 7)
                end // else: !if(hblank)
           end // else: !if(clr == 1)
      end // always @ (posedge px_clk or posedge clr)

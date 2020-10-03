@@ -19,17 +19,21 @@ module sync_generator (
    // VESA Signal 1280 x 1024 @ 60 Hz timing (native res for a LG LX40 17" lcd)
    // from http://tinyvga.com/vga-timing/1280x1024@75Hz
    parameter hpixels = 1688; // horizontal pixels per line
-   parameter hbp = 248; 	// horizontal back porch
-   parameter hvisible = 1280; // horizontal visible area pixels
-   parameter hfp = 48; 	// horizontal front porch
+   // XXX removed some columns to leave just 64 lines of 8 pixels (512)
+   parameter hbp = 248 + 384; 	// horizontal back porch
+   parameter hvisible = 1280 - (2*384); // horizontal visible area pixels
+   parameter hfp = 48 + 384; 	// horizontal front porch
+//   parameter hbp = 248; 	// horizontal back porch
+//   parameter hvisible = 1280; // horizontal visible area pixels
+//   parameter hfp = 48; 	// horizontal front porch
    parameter hpulse = 112;	// hsync pulse length
 
    parameter vlines = 1066; // vertical lines per frame
-   // XXX removed some lines so that a centered area of 800 lines
+   // XXX removed some lines to leave just 16 lines of 16 pixels (256)
+   parameter vbp = 38+384; 	// vertical back porch
+   parameter vvisible = 1024-(2*384); // vertical visible area lines
+   parameter vfp = 1+384; 	// vertical front porch
    // (25 lines of 32 pixels)
-   parameter vbp = 38+112; 	// vertical back porch
-   parameter vvisible = 1024-224; // vertical visible area lines
-   parameter vfp = 1+112; 	// vertical front porch
    //
    //    parameter vbp = 38; 	// vertical back porch
    //    parameter vvisible = 1024; // vertical visible area lines
