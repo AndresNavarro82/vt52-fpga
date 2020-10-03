@@ -47,8 +47,6 @@ module sync_generator (
    pll mypll(clk12, px_clk, locked);
 
    reg  [10:0] next_hc, next_vc;
-   reg  next_hsync, next_vsync;
-   reg  next_hblank, next_vblank;
 
    // horizontal & vertical counters
    always @(posedge px_clk or posedge clr)
@@ -83,12 +81,6 @@ module sync_generator (
 	     next_hc = hc + 1;
              next_vc = vc;
           end
-
-        // syncs & blanks
-        next_hsync = (next_hc >= hbp + hvisible + hfp)? hsync_on : hsync_off;
-        next_vsync = (next_vc >= vbp + vvisible + vfp)? vsync_on : vsync_off;
-        next_hblank = (next_hc < hbp || next_hc >= hbp + hvisible);
-        next_vblank = (next_vc < vbp || next_vc >= vbp + vvisible);
      end // always @ (*)
 
    // syncs & blanks
@@ -103,10 +95,11 @@ module sync_generator (
           end
         else
           begin
-             hsync <= next_hsync;
-             vsync <= next_vsync;
-             hblank <= next_hblank;
-             vblank <= next_vblank;
+             // syncs & blanks
+             hsync <= (next_hc >= hbp + hvisible + hfp)? hsync_on : hsync_off;
+             vsync <= (next_vc >= vbp + vvisible + vfp)? vsync_on : vsync_off;
+             hblank <= (next_hc < hbp || next_hc >= hbp + hvisible);
+             vblank <= (next_vc < vbp || next_vc >= vbp + vvisible);
           end
      end
  endmodule
