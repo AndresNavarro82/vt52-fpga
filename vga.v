@@ -2,6 +2,7 @@
 `include "char_rom.v"
 `include "char_buffer.v"
 `include "sync_generator.v"
+`include "cursor_blinker.v"
 
 module top (
 	    input       pclk,
@@ -35,21 +36,8 @@ module top (
    // cursor
    reg [3:0]            cursor_y = 0;
    reg [5:0]            cursor_x = 0;
-   reg [5:0]            cursor_blink_counter = 0;
-   reg                  cursor_blink_counter_flag = 0;
    wire                 cursor_blink_on;
-
-   // blinks about once a second
-   assign cursor_blink_on = cursor_blink_counter[5];
-   wire                 is_under_cursor;
-   assign is_under_cursor = (cursor_x == col) & (cursor_y == row);
-   wire                 cursor_xor;
-   // invert video when we are under the cursor & it's blinking
-   assign cursor_xor = is_under_cursor & cursor_blink_on;
-
    // /cursor
-
-
    reg [7:0]            char_row;
    wire [11:0]          char_address;
    wire [7:0]           char_address_high;
@@ -66,15 +54,22 @@ module top (
    led_counter myled_counter(vblank, {LED1, LED2, LED3, LED4, LED5});
    char_buffer mychar_buffer(buffer_din, next_char, buffer_wen, px_clk, char_address_high);
    char_rom mychar_rom(char_address, px_clk, next_char_row);
+   cursor_blinker mycursor_blinker(vblank, clr, cursor_blink_on);
 
    // The address of the char row is formed with the char and the row offset
    assign char_address = { char_address_high, rowc };
-   // only emit video on non-blanking, select pixel according to column
-   assign video_out = char_row[7-colc] ^ cursor_xor;
 
    parameter video_on = 1'b1;
    localparam video_off = ~video_on;
 
+   wire                 is_under_cursor;
+   assign is_under_cursor = (cursor_x == col) & (cursor_y == row);
+   wire                 cursor_xor;
+   // invert video when we are under the cursor & it's blinking
+   assign cursor_xor = is_under_cursor & cursor_blink_on;
+
+   // only emit video on non-blanking, select pixel according to column
+   assign video_out = char_row[7-colc] ^ cursor_xor;
    assign video = (hblank || vblank)? video_off : video_out;
 
    // TODO refactor and move to new file
@@ -88,8 +83,6 @@ module top (
 	     colc <= 0;
 	     rowc <= 0;
              // cursor
-             cursor_blink_counter <= 0;
-             cursor_blink_counter_flag <= 0;
              cursor_y <= 0;
              cursor_x <= 0;
              // /cursor
@@ -104,13 +97,6 @@ module top (
 	          colc <= 0;
 	          rowc <= 0;
 		  char <= 0;
-                  // cursor  XXX maybe use vblank as clock?
-                  if (!cursor_blink_counter_flag)
-                    begin
-                       cursor_blink_counter_flag <= 1;
-                       cursor_blink_counter <= cursor_blink_counter + 1;
-                    end
-                  // /cursor
                end
              else if (hblank)
                begin
@@ -145,9 +131,6 @@ module top (
                end // if (hblank)
              else
 	       begin
-                  // cursor
-                  cursor_blink_counter_flag <= 0;
-                  // /cursor
                   hsync_flag <= 1;
 		  // update char col if in active area
 		  if (colc < 7)

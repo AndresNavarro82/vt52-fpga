@@ -6,7 +6,6 @@
 module sync_generator (
 		       input             clk12, // 12MHz clock
                        input             clr, // async reset
-                       // XXX maybe these should be regs??
 		       output reg       hsync,
 		       output reg       vsync,
 		       output reg       hblank,
