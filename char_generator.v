@@ -1,5 +1,3 @@
-`include "char_buffer.v"
-`include "char_rom.v"
 /**
  * 64x16 char generator (8x16 char size)
  * TODO maybe this could use more of the sync generator output
@@ -142,6 +140,7 @@ module char_generator (
           end
         else
           begin
+             // I think the pixel appears a clk late, but it shouldn't be a problem
              if (hblank || vblank)
                pixel_out <= 0;
              else

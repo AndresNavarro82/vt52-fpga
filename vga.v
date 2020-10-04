@@ -1,9 +1,3 @@
-`include "led_counter.v"
-`include "sync_generator.v"
-`include "char_generator.v"
-`include "cursor_blinker.v"
-`include "cursor_position.v"
-
 module top (
 	    input       pclk,
 	    input       clr, //asynchronous reset

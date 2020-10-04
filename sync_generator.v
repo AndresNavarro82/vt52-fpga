@@ -1,5 +1,3 @@
-`include "pll.v"
-
 /**
  * VGA sync generator
  * TODO maybe this should output the real x and y (inside the visible area)

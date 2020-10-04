@@ -20,7 +20,7 @@ $(NAME).asc: $(NAME).json
 	nextpnr-ice40 --hx1k --package tq144 --json $< --pcf $(NAME).pcf --asc $@
 
 $(NAME).json: $(SRCS) $(MEMS)
-	yosys -p 'synth_ice40 -top top -json $@' $(NAME).v
+	yosys -p 'synth_ice40 -top top -json $@' $(SRCS)
 
 clean:
 	rm -f $(NAME).bin
