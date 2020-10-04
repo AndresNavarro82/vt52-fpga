@@ -140,10 +140,13 @@ module char_generator (
           end
         else
           begin
-             // I think the pixel appears a clk late, but it shouldn't be a problem
+             // XXX I'm not exactly sure why, but without this if, wide chars in the first column
+             // (like w) get an extra pixel on the previous column
              if (hblank || vblank)
                pixel_out <= 0;
              else
+             // I think the pixel appears a clk late, but it shouldn't be a problem
+             // select pixel according to column
                pixel_out <= next_char_row[7-colc];
           end
      end
