@@ -2,6 +2,8 @@
 
 /**
  * VGA sync generator
+ * TODO maybe this should output the real x and y (inside the visible area)
+ * instead of (or in addition to) hc & vc
  */
 module sync_generator (
 		       input             clk12, // 12MHz clock
