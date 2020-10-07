@@ -11,7 +11,10 @@ module char_generator (
 		       input            vblank,
                        output reg [3:0] row,
                        output reg [5:0] col,
-                       output reg       pixel_out
+                       output reg       pixel_out,
+                       input [9:0]      buffer_waddr,
+                       input [7:0]      buffer_din,
+                       input            buffer_wen
 		       );
 
    reg [3:0] next_row;
@@ -24,10 +27,12 @@ module char_generator (
 
    reg hsync_flag, next_hsync_flag;
 
-   // write function not used for now
+   // write function not used for now XXX
+/*
    wire [7:0] buffer_din = 8'b0;
    wire [9:0] buffer_waddr = 10'b0;
    wire       buffer_wen = 1'b0;
+ */
    // XXX for now we are constantly reading from both
    // rom & ram, we clock the row on the last column of the char
    // (or hblank)

@@ -9,3 +9,5 @@ set_io LED4 96
 set_io LED5 95
 
 set_io clr 78
+set_io ps2_data 91
+set_io ps2_clk 90
