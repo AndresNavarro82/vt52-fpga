@@ -37,7 +37,7 @@ module top (
    // we can do this because width is a power of 2 (2^6 = 64)
    wire [9:0] new_char_address;
    assign new_char_address = {cursor_y, cursor_x};
-   reg        char_wen;
+   reg        new_char_wen;
 
    // TODO rewrite this instantiations to used the param names
    sync_generator mysync_generator(pclk, clr, hsync, vsync, hblank, vblank, hc, vc, px_clk);
@@ -88,7 +88,6 @@ module top (
          ps2_count <= 0;
          ps2_byte <= 0;
          ps2_raw_data <= 0;
-         ps2_clk_buf <= 0;
 
          ps2_break_keycode <= 0;
          ps2_long_keycode <= 0;
@@ -131,6 +130,7 @@ module top (
 	       new_cursor_x <= cursor_x == 63? cursor_x : cursor_x + 1;
                write_cursor_pos <= 1;
                case (ps2_byte)
+                 8'h0e: new_char <= "`";
                  8'h16: new_char <= "1";
                  8'h1e: new_char <= "2";
                  8'h26: new_char <= "3";
@@ -141,6 +141,9 @@ module top (
                  8'h3e: new_char <= "8";
                  8'h46: new_char <= "9";
                  8'h45: new_char <= "0";
+                 8'h4e: new_char <= "-";
+                 8'h55: new_char <= "=";
+                 8'h5d: new_char <= "\\";
 
                  8'h15: new_char <= "q";
                  8'h1d: new_char <= "w";
@@ -152,6 +155,8 @@ module top (
                  8'h43: new_char <= "i";
                  8'h44: new_char <= "o";
                  8'h4d: new_char <= "p";
+                 8'h54: new_char <= "[";
+                 8'h5b: new_char <= "]";
 
                  8'h1c: new_char <= "a";
                  8'h1b: new_char <= "s";
@@ -162,6 +167,8 @@ module top (
                  8'h3b: new_char <= "j";
                  8'h42: new_char <= "k";
                  8'h4b: new_char <= "l";
+                 8'h4c: new_char <= ";";
+                 8'h52: new_char <= "'";
 
                  8'h1a: new_char <= "z";
                  8'h22: new_char <= "x";
@@ -170,7 +177,10 @@ module top (
                  8'h32: new_char <= "b";
                  8'h31: new_char <= "n";
                  8'h3a: new_char <= "m";
-
+                 8'h41: new_char <= ".";
+                 8'h49: new_char <= ",";
+                 8'h4a: new_char <= "/";
+                 // control chars (backspace, return)
                  8'h66: begin
                     new_char_wen <= 0;
 	            new_cursor_x <= cursor_x == 0? cursor_x : cursor_x - 1;
