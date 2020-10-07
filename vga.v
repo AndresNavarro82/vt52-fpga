@@ -71,6 +71,9 @@ module top (
    reg        ps2_break_keycode;
    // we are processing a long keycode (two bytes)
    reg        ps2_long_keycode;
+   // shift key status
+   reg        lshift_pressed;
+   reg        rshift_pressed;
 
    // we don't need to do this on the pixel clock, we could use
    // something way slower, but it works
@@ -91,6 +94,9 @@ module top (
 
          ps2_break_keycode <= 0;
          ps2_long_keycode <= 0;
+
+         lshift_pressed <= 0;
+         rshift_pressed <= 0;
       end
       else begin
          if (write_cursor_pos | new_char_wen) begin
@@ -125,98 +131,233 @@ module top (
             ps2_raw_data <= {ps2_data, ps2_raw_data[10:1]};
 	 end // if (ps2_clk_pos == 1)
          if (!write_cursor_pos && !new_char_wen) begin
- 	    if(!ps2_long_keycode && !ps2_break_keycode) begin
-               new_char_wen <= 1;
-	       new_cursor_x <= cursor_x == 63? cursor_x : cursor_x + 1;
-               write_cursor_pos <= 1;
-               case (ps2_byte)
-                 8'h0e: new_char <= "`";
-                 8'h16: new_char <= "1";
-                 8'h1e: new_char <= "2";
-                 8'h26: new_char <= "3";
-                 8'h25: new_char <= "4";
-                 8'h2e: new_char <= "5";
-                 8'h36: new_char <= "6";
-                 8'h3d: new_char <= "7";
-                 8'h3e: new_char <= "8";
-                 8'h46: new_char <= "9";
-                 8'h45: new_char <= "0";
-                 8'h4e: new_char <= "-";
-                 8'h55: new_char <= "=";
-                 8'h5d: new_char <= "\\";
-
-                 8'h15: new_char <= "q";
-                 8'h1d: new_char <= "w";
-                 8'h24: new_char <= "e";
-                 8'h2d: new_char <= "r";
-                 8'h2c: new_char <= "t";
-                 8'h35: new_char <= "y";
-                 8'h3c: new_char <= "u";
-                 8'h43: new_char <= "i";
-                 8'h44: new_char <= "o";
-                 8'h4d: new_char <= "p";
-                 8'h54: new_char <= "[";
-                 8'h5b: new_char <= "]";
-
-                 8'h1c: new_char <= "a";
-                 8'h1b: new_char <= "s";
-                 8'h23: new_char <= "d";
-                 8'h2b: new_char <= "f";
-                 8'h34: new_char <= "g";
-                 8'h33: new_char <= "h";
-                 8'h3b: new_char <= "j";
-                 8'h42: new_char <= "k";
-                 8'h4b: new_char <= "l";
-                 8'h4c: new_char <= ";";
-                 8'h52: new_char <= "'";
-
-                 8'h1a: new_char <= "z";
-                 8'h22: new_char <= "x";
-                 8'h21: new_char <= "c";
-                 8'h2a: new_char <= "v";
-                 8'h32: new_char <= "b";
-                 8'h31: new_char <= "n";
-                 8'h3a: new_char <= "m";
-                 8'h41: new_char <= ".";
-                 8'h49: new_char <= ",";
-                 8'h4a: new_char <= "/";
-                 // control chars (backspace, return)
-                 8'h66: begin
-                    new_char_wen <= 0;
-	            new_cursor_x <= cursor_x == 0? cursor_x : cursor_x - 1;
-                 end
-                 8'h29: new_char <= " ";
-                 8'h5a: begin
-                    new_char_wen <= 0;
-	            new_cursor_x <= 0;
-	            new_cursor_y <= cursor_y == 15? cursor_y : cursor_y + 1;
-                 end
-                 default: begin
-                    new_char_wen <= 0;
-	            new_cursor_x <= cursor_x;
-                    write_cursor_pos <= 0;
-                 end
-               endcase // case (ps2_byte)
+            if (ps2_break_keycode) begin
+               // keyup
+               if (!ps2_long_keycode) begin
+                  // keyup: short keycode
+                  if (ps2_byte == 8'h12)  begin
+                       lshift <= 0;
+                       // XXX this will not clear the char, maybe use a flag reg for this,
+                       // like char processed, instead of relying on new_char_wen &
+                       // // write_cursor_pos
+                    end
+                  if (ps2_byte == 8'h59) begin
+                       rshift <= 0;
+                       // XXX this will not clear the char, maybe use a flag reg for this,
+                       // like char processed, instead of relying on new_char_wen &
+                       // // write_cursor_pos
+                  end
+               end
             end
- 	    if(ps2_long_keycode && !ps2_break_keycode) begin
-	       if(ps2_byte == 8'h75) begin		// up
-		  new_cursor_y <= cursor_y == 0? cursor_y : cursor_y - 1;
-                  write_cursor_pos <= 1;
-  	       end
-	       else if(ps2_byte == 8'h6b) begin	// left
-		  new_cursor_x <= cursor_x == 0? cursor_x : cursor_x - 1;
-                  write_cursor_pos <= 1;
-  	       end
-	       else if(ps2_byte == 8'h72) begin // down
-		  new_cursor_y <= cursor_y == 15? cursor_y : cursor_y + 1;
-                  write_cursor_pos <= 1;
-  	       end
-	       else if(ps2_byte == 8'h74) begin // right
-		  new_cursor_x <= cursor_x == 63? cursor_x : cursor_x + 1;
-                  write_cursor_pos <= 1;
-  	       end
-	    end // if (ps2_long_keycode && !ps2_break_keycode)
-         end // if (~write_cursor_pos && ~new_char_wen)
+            else begin
+               // keydown
+ 	       if(ps2_long_keycode) begin
+                  // keydown: long keycode
+	          if(ps2_byte == 8'h75) begin		// up
+		     new_cursor_y <= cursor_y == 0? cursor_y : cursor_y - 1;
+                     write_cursor_pos <= 1;
+  	          end
+	          else if(ps2_byte == 8'h6b) begin	// left
+		     new_cursor_x <= cursor_x == 0? cursor_x : cursor_x - 1;
+                     write_cursor_pos <= 1;
+  	          end
+	          else if(ps2_byte == 8'h72) begin // down
+		     new_cursor_y <= cursor_y == 15? cursor_y : cursor_y + 1;
+                     write_cursor_pos <= 1;
+  	          end
+	          else if(ps2_byte == 8'h74) begin // right
+		     new_cursor_x <= cursor_x == 63? cursor_x : cursor_x + 1;
+                     write_cursor_pos <= 1;
+  	          end
+	       end // if (ps2_long_keycode)
+               else begin
+                  if (lshift || rshift) begin
+                     // keydown: short keycode (shift pressed)
+                     new_char_wen <= 1;
+	             new_cursor_x <= cursor_x == 63? cursor_x : cursor_x + 1;
+                     write_cursor_pos <= 1;
+                     case (ps2_byte)
+                       8'h0e: new_char <= "~";
+                       8'h16: new_char <= "!";
+                       8'h1e: new_char <= "@";
+                       8'h26: new_char <= "#";
+                       8'h25: new_char <= "$";
+                       8'h2e: new_char <= "%";
+                       8'h36: new_char <= "^";
+                       8'h3d: new_char <= "&";
+                       8'h3e: new_char <= "*";
+                       8'h46: new_char <= "(";
+                       8'h45: new_char <= ")";
+                       8'h4e: new_char <= "_";
+                       8'h55: new_char <= "+";
+                       8'h5d: new_char <= "|";
+
+                       8'h15: new_char <= "Q";
+                       8'h1d: new_char <= "W";
+                       8'h24: new_char <= "E";
+                       8'h2d: new_char <= "R";
+                       8'h2c: new_char <= "T";
+                       8'h35: new_char <= "Y";
+                       8'h3c: new_char <= "U";
+                       8'h43: new_char <= "I";
+                       8'h44: new_char <= "O";
+                       8'h4d: new_char <= "P";
+                       8'h54: new_char <= "{";
+                       8'h5b: new_char <= "}";
+
+                       8'h1c: new_char <= "A";
+                       8'h1b: new_char <= "S";
+                       8'h23: new_char <= "D";
+                       8'h2b: new_char <= "F";
+                       8'h34: new_char <= "G";
+                       8'h33: new_char <= "H";
+                       8'h3b: new_char <= "J";
+                       8'h42: new_char <= "K";
+                       8'h4b: new_char <= "L";
+                       8'h4c: new_char <= ":";
+                       8'h52: new_char <= "\"";
+
+                       8'h1a: new_char <= "Z";
+                       8'h22: new_char <= "X";
+                       8'h21: new_char <= "C";
+                       8'h2a: new_char <= "V";
+                       8'h32: new_char <= "B";
+                       8'h31: new_char <= "N";
+                       8'h3a: new_char <= "M";
+                       8'h41: new_char <= "<";
+                       8'h49: new_char <= ">";
+                       8'h4a: new_char <= "?";
+                       // control chars (backspace, return)
+                       8'h66: begin
+                          new_char_wen <= 0;
+	                  new_cursor_x <= cursor_x == 0? cursor_x : cursor_x - 1;
+                       end
+                       8'h29: new_char <= " ";
+                       8'h5a: begin
+                          new_char_wen <= 0;
+	                  new_cursor_x <= 0;
+	                  new_cursor_y <= cursor_y == 15? cursor_y : cursor_y + 1;
+                       end
+                       8'h12: begin
+                          lshift <= 1;
+	                  new_cursor_x <= cursor_x;
+                          new_char_wen <= 0;
+                          write_cursor_pos <= 0;
+                          // XXX this will not clear the char, maybe use a flag reg for this,
+                          // like char processed, instead of relying on new_char_wen &
+                          // // write_cursor_pos
+                       end
+                       8'h59: begin
+                          rshift <= 1;
+	                  new_cursor_x <= cursor_x;
+                          new_char_wen <= 0;
+                          write_cursor_pos <= 0;
+                          // XXX this will not clear the char, maybe use a flag reg for this,
+                          // like char processed, instead of relying on new_char_wen &
+                          // // write_cursor_pos
+                       end
+                       default: begin
+                          new_char_wen <= 0;
+	                  new_cursor_x <= cursor_x;
+                          write_cursor_pos <= 0;
+                       end
+                     endcase // case (ps2_byte)
+                  end // if (lshift || rshift)
+                  else begin
+                     // keydown: short keycode (no shift pressed)
+                     new_char_wen <= 1;
+	             new_cursor_x <= cursor_x == 63? cursor_x : cursor_x + 1;
+                     write_cursor_pos <= 1;
+                     case (ps2_byte)
+                       8'h0e: new_char <= "`";
+                       8'h16: new_char <= "1";
+                       8'h1e: new_char <= "2";
+                       8'h26: new_char <= "3";
+                       8'h25: new_char <= "4";
+                       8'h2e: new_char <= "5";
+                       8'h36: new_char <= "6";
+                       8'h3d: new_char <= "7";
+                       8'h3e: new_char <= "8";
+                       8'h46: new_char <= "9";
+                       8'h45: new_char <= "0";
+                       8'h4e: new_char <= "-";
+                       8'h55: new_char <= "=";
+                       8'h5d: new_char <= "\\";
+
+                       8'h15: new_char <= "q";
+                       8'h1d: new_char <= "w";
+                       8'h24: new_char <= "e";
+                       8'h2d: new_char <= "r";
+                       8'h2c: new_char <= "t";
+                       8'h35: new_char <= "y";
+                       8'h3c: new_char <= "u";
+                       8'h43: new_char <= "i";
+                       8'h44: new_char <= "o";
+                       8'h4d: new_char <= "p";
+                       8'h54: new_char <= "[";
+                       8'h5b: new_char <= "]";
+
+                       8'h1c: new_char <= "a";
+                       8'h1b: new_char <= "s";
+                       8'h23: new_char <= "d";
+                       8'h2b: new_char <= "f";
+                       8'h34: new_char <= "g";
+                       8'h33: new_char <= "h";
+                       8'h3b: new_char <= "j";
+                       8'h42: new_char <= "k";
+                       8'h4b: new_char <= "l";
+                       8'h4c: new_char <= ";";
+                       8'h52: new_char <= "'";
+
+                       8'h1a: new_char <= "z";
+                       8'h22: new_char <= "x";
+                       8'h21: new_char <= "c";
+                       8'h2a: new_char <= "v";
+                       8'h32: new_char <= "b";
+                       8'h31: new_char <= "n";
+                       8'h3a: new_char <= "m";
+                       8'h41: new_char <= ".";
+                       8'h49: new_char <= ",";
+                       8'h4a: new_char <= "/";
+                       // control chars (backspace, return)
+                       8'h66: begin
+                          new_char_wen <= 0;
+	                  new_cursor_x <= cursor_x == 0? cursor_x : cursor_x - 1;
+                       end
+                       8'h29: new_char <= " ";
+                       8'h5a: begin
+                          new_char_wen <= 0;
+	                  new_cursor_x <= 0;
+	                  new_cursor_y <= cursor_y == 15? cursor_y : cursor_y + 1;
+                       end
+                       8'h12: begin
+                          lshift <= 1;
+	                  new_cursor_x <= cursor_x;
+                          new_char_wen <= 0;
+                          write_cursor_pos <= 0;
+                          // XXX this will not clear the char, maybe use a flag reg for this,
+                          // like char processed, instead of relying on new_char_wen &
+                          // // write_cursor_pos
+                       end
+                       8'h59: begin
+                          rshift <= 1;
+	                  new_cursor_x <= cursor_x;
+                          new_char_wen <= 0;
+                          write_cursor_pos <= 0;
+                          // XXX this will not clear the char, maybe use a flag reg for this,
+                          // like char processed, instead of relying on new_char_wen &
+                          // // write_cursor_pos
+                       end
+                       default: begin
+                          new_char_wen <= 0;
+	                  new_cursor_x <= cursor_x;
+                          write_cursor_pos <= 0;
+                       end
+                     endcase // case (ps2_byte)
+                  end // else: !if(lshift || rshift)
+               end // else: !if(ps2_long_keycode)
+            end // else: !if(ps2_break_keycode)
+         end // if (!write_cursor_pos && !new_char_wen)
       end // else: !if(clr)
    end // always @ (posedge px_clk or posedge clr)
 endmodule
