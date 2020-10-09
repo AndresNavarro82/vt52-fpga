@@ -6,8 +6,8 @@ module led_counter(
                    output wire led_out
                    );
 
-   reg [9:0] counter = 10'b0;
-   assign led_out = counter[9];
+   reg [5:0] counter = 6'b0;
+   assign led_out = counter[5];
    always @(posedge clk_in)
      begin
         counter <= counter + 1;

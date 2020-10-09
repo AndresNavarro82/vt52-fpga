@@ -20,3 +20,9 @@ set_io --warn-no-port ps2_clk A9
 # led
 set_io --warn-no-port led B3
 
+# usb
+set_io pin_usb_p B4
+set_io pin_usb_n A4
+set_io pin_pu    A3
+
+

@@ -6,7 +6,10 @@ module top (
             output wire video,
             output wire led,
             input       ps2_data,
-            input       ps2_clk
+            input       ps2_clk,
+            inout       pin_usb_p,
+            inout       pin_usb_n,
+            output      pin_pu
             );
 
    // pll outputs
@@ -62,6 +65,43 @@ module top (
    assign video_out = char_pixel ^ cursor_pixel;
    // only emit video on non-blanking periods
    assign video = (hblank || vblank)? video_off : video_out;
+
+   // USB
+   // XXX/TODO use this for for all clears???
+   // Generate reset signal
+   reg [5:0] reset_cnt = 0;
+   wire      reset = ~reset_cnt[5];
+   always @(posedge fast_clk)
+     if ( locked )
+       reset_cnt <= reset_cnt + reset;
+
+   // uart pipeline in
+   wire [7:0] uart_in_data;
+   wire       uart_in_valid;
+   wire       uart_in_ready;
+
+   // usb uart - this instanciates the entire USB device.
+   usb_uart uart (
+                  .clk_48mhz  (fast_clk),
+                  .reset      (reset),
+
+                  // pins
+                  .pin_usb_p( pin_usb_p ),
+                  .pin_usb_n( pin_usb_n ),
+
+                  // uart pipeline in
+                  .uart_in_data( uart_in_data ),
+                  .uart_in_valid( uart_in_valid ),
+                  .uart_in_ready( uart_in_ready ),
+
+                  .uart_out_data( uart_in_data ),
+                  .uart_out_valid( uart_in_valid ),
+                  .uart_out_ready( uart_in_ready  )
+
+                  );
+
+   // USB host detect
+   assign pin_pu = 1'b1;
 
    reg [1:0] ps2_old_clks;
    reg [10:0] ps2_raw_data;
