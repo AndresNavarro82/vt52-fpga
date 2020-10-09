@@ -5,17 +5,17 @@
  * TODO add inputs to write to char buffer
  */
 module char_generator (
-		       input            clk, // pixel clock
+                       input            clk, // pixel clock
                        input            clr, // async reset
-		       input            hblank,
-		       input            vblank,
+                       input            hblank,
+                       input            vblank,
                        output reg [3:0] row,
                        output reg [5:0] col,
                        output reg       pixel_out,
                        input [9:0]      buffer_waddr,
                        input [7:0]      buffer_din,
                        input            buffer_wen
-		       );
+                       );
 
    reg [3:0] next_row;
    reg [5:0] next_col;
@@ -23,7 +23,8 @@ module char_generator (
    reg [3:0] rowc, next_rowc;
 
    reg [9:0] char, next_char;
-   reg [7:0] char_row, next_char_row, rom_char_row;
+   reg [7:0] char_row, next_char_row;
+   wire [7:0] rom_char_row;
 
    reg hsync_flag, next_hsync_flag;
 
@@ -50,18 +51,18 @@ module char_generator (
    // horizontal & vertical counters
    always @(posedge clk or posedge clr)
      begin
-	// reset condition
-	if (clr == 1)
-	  begin
-	     row <= 0;
-	     col <= 0;
-	     rowc <= 0;
-	     colc <= 0;
+        // reset condition
+        if (clr == 1)
+          begin
+             row <= 0;
+             col <= 0;
+             rowc <= 0;
+             colc <= 0;
              char <= 0;
              hsync_flag <= 0;
              char_row <= 0;
- 	  end
-	else
+          end
+        else
           begin
              row <= next_row;
              col <= next_col;
@@ -77,11 +78,11 @@ module char_generator (
      begin
         if (vblank)
           begin
-	     next_row = 0;
-	     next_rowc = 0;
-	     next_col = 0;
-	     next_colc = 0;
-	     next_char = 0;
+             next_row = 0;
+             next_rowc = 0;
+             next_col = 0;
+             next_colc = 0;
+             next_char = 0;
              next_hsync_flag = 0;
              next_char_row = rom_char_row;
           end
@@ -99,20 +100,20 @@ module char_generator (
              // only do this once per line
              if (hsync_flag == 1)
                begin
-		  if (rowc == 15)
-		    begin
+                  if (rowc == 15)
+                    begin
                        // we are moving to the next row, so char
                        // is already set at the correct value
-		       next_row = row + 1;
-		       next_rowc = 0;
+                       next_row = row + 1;
+                       next_rowc = 0;
                     end
-		  else
-		    begin
+                  else
+                    begin
                        // we are still on the same row, so
                        // go back to the first char in this line
                        next_char = char - 64;
-		       next_rowc = rowc + 1;
-		    end // else: !if(rowc == 15)
+                       next_rowc = rowc + 1;
+                    end // else: !if(rowc == 15)
                end // if (hsync_flag == 1)
           end // if (hblank)
         else
@@ -130,11 +131,11 @@ module char_generator (
                next_char = char+1; // we need this as soon as possible
              else if (colc == 7) // we need to move to the next char
                begin
-	          next_col = col+1;
+                  next_col = col+1;
                   next_colc = 0;
                   next_char_row = rom_char_row;
                end
-	  end // else: !if(hblank)
+          end // else: !if(hblank)
      end // always @ (posedge clk or posedge clr)
 
    always @(posedge clk or posedge clr)

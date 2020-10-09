@@ -1,12 +1,12 @@
 module top (
-	    input       clk, // 16Mhz clock
-	    input       clr, // asynchronous reset
-	    output wire hsync,
-	    output wire vsync,
-	    output wire video,
-	    output wire led,
-            input ps2_data,
-            input ps2_clk
+            input       clk, // 16Mhz clock
+            input       clr, // asynchronous reset
+            output wire hsync,
+            output wire vsync,
+            output wire video,
+            output wire led,
+            input       ps2_data,
+            input       ps2_clk
             );
 
    // sync generator outputs
@@ -25,8 +25,8 @@ module top (
    reg write_cursor_pos;
 
    // char generator outputs
-   reg [3:0] row;
-   reg [5:0] col;
+   wire [3:0] row;
+   wire [5:0] col;
    wire      char_pixel;
    // char buffer inputs
    reg [7:0] new_char;
@@ -104,12 +104,12 @@ module top (
          end
          ps2_old_clks <= {ps2_old_clks[0], ps2_clk};
 
-	 if(ps2_clk && ps2_old_clks == 2'b01) begin
-	    ps2_count <= ps2_count + 1;
-	    if(ps2_count == 10) begin
+         if(ps2_clk && ps2_old_clks == 2'b01) begin
+            ps2_count <= ps2_count + 1;
+            if(ps2_count == 10) begin
                // 11 bits means we are done (XXX/TODO check parity and stop bits)
-	       ps2_count <= 0;
-	       ps2_byte <= ps2_raw_data[10:3];
+               ps2_count <= 0;
+               ps2_byte <= ps2_raw_data[10:3];
                // handle the breaks & long keycodes
                if (ps2_raw_data[10:3] == 8'he0) begin
                   ps2_long_keycode <= 1;
@@ -122,23 +122,23 @@ module top (
                   ps2_break_keycode <= 0;
                   ps2_long_keycode <= 0;
                end
-	    end
+            end
             // the data comes lsb first
             ps2_raw_data <= {ps2_data, ps2_raw_data[10:1]};
-	 end // if (ps2_clk_pos == 1)
+         end // if (ps2_clk_pos == 1)
          if (!write_cursor_pos && !new_char_wen) begin
             if (ps2_break_keycode) begin
                // keyup
                if (!ps2_long_keycode) begin
                   // keyup: short keycode
                   if (ps2_byte == 8'h12)  begin
-                       lshift <= 0;
+                       lshift_pressed <= 0;
                        // XXX this will not clear the char, maybe use a flag reg for this,
                        // like char processed, instead of relying on new_char_wen &
                        // // write_cursor_pos
                     end
                   if (ps2_byte == 8'h59) begin
-                       rshift <= 0;
+                       rshift_pressed <= 0;
                        // XXX this will not clear the char, maybe use a flag reg for this,
                        // like char processed, instead of relying on new_char_wen &
                        // // write_cursor_pos
@@ -147,30 +147,30 @@ module top (
             end
             else begin
                // keydown
- 	       if(ps2_long_keycode) begin
+               if(ps2_long_keycode) begin
                   // keydown: long keycode
-	          if(ps2_byte == 8'h75) begin		// up
-		     new_cursor_y <= cursor_y == 0? cursor_y : cursor_y - 1;
+                  if(ps2_byte == 8'h75) begin           // up
+                     new_cursor_y <= cursor_y == 0? cursor_y : cursor_y - 1;
                      write_cursor_pos <= 1;
-  	          end
-	          else if(ps2_byte == 8'h6b) begin	// left
-		     new_cursor_x <= cursor_x == 0? cursor_x : cursor_x - 1;
+                  end
+                  else if(ps2_byte == 8'h6b) begin      // left
+                     new_cursor_x <= cursor_x == 0? cursor_x : cursor_x - 1;
                      write_cursor_pos <= 1;
-  	          end
-	          else if(ps2_byte == 8'h72) begin // down
-		     new_cursor_y <= cursor_y == 15? cursor_y : cursor_y + 1;
+                  end
+                  else if(ps2_byte == 8'h72) begin // down
+                     new_cursor_y <= cursor_y == 15? cursor_y : cursor_y + 1;
                      write_cursor_pos <= 1;
-  	          end
-	          else if(ps2_byte == 8'h74) begin // right
-		     new_cursor_x <= cursor_x == 63? cursor_x : cursor_x + 1;
+                  end
+                  else if(ps2_byte == 8'h74) begin // right
+                     new_cursor_x <= cursor_x == 63? cursor_x : cursor_x + 1;
                      write_cursor_pos <= 1;
-  	          end
-	       end // if (ps2_long_keycode)
+                  end
+               end // if (ps2_long_keycode)
                else begin
-                  if (lshift || rshift) begin
+                  if (lshift_pressed || rshift_pressed) begin
                      // keydown: short keycode (shift pressed)
                      new_char_wen <= 1;
-	             new_cursor_x <= cursor_x == 63? cursor_x : cursor_x + 1;
+                     new_cursor_x <= cursor_x == 63? cursor_x : cursor_x + 1;
                      write_cursor_pos <= 1;
                      case (ps2_byte)
                        8'h0e: new_char <= "~";
@@ -226,17 +226,17 @@ module top (
                        // control chars (backspace, return)
                        8'h66: begin
                           new_char_wen <= 0;
-	                  new_cursor_x <= cursor_x == 0? cursor_x : cursor_x - 1;
+                          new_cursor_x <= cursor_x == 0? cursor_x : cursor_x - 1;
                        end
                        8'h29: new_char <= " ";
                        8'h5a: begin
                           new_char_wen <= 0;
-	                  new_cursor_x <= 0;
-	                  new_cursor_y <= cursor_y == 15? cursor_y : cursor_y + 1;
+                          new_cursor_x <= 0;
+                          new_cursor_y <= cursor_y == 15? cursor_y : cursor_y + 1;
                        end
                        8'h12: begin
-                          lshift <= 1;
-	                  new_cursor_x <= cursor_x;
+                          lshift_pressed <= 1;
+                          new_cursor_x <= cursor_x;
                           new_char_wen <= 0;
                           write_cursor_pos <= 0;
                           // XXX this will not clear the char, maybe use a flag reg for this,
@@ -244,8 +244,8 @@ module top (
                           // // write_cursor_pos
                        end
                        8'h59: begin
-                          rshift <= 1;
-	                  new_cursor_x <= cursor_x;
+                          rshift_pressed <= 1;
+                          new_cursor_x <= cursor_x;
                           new_char_wen <= 0;
                           write_cursor_pos <= 0;
                           // XXX this will not clear the char, maybe use a flag reg for this,
@@ -254,15 +254,15 @@ module top (
                        end
                        default: begin
                           new_char_wen <= 0;
-	                  new_cursor_x <= cursor_x;
+                          new_cursor_x <= cursor_x;
                           write_cursor_pos <= 0;
                        end
                      endcase // case (ps2_byte)
-                  end // if (lshift || rshift)
+                  end // if (lshift_pressed || rshift_pressed)
                   else begin
                      // keydown: short keycode (no shift pressed)
                      new_char_wen <= 1;
-	             new_cursor_x <= cursor_x == 63? cursor_x : cursor_x + 1;
+                     new_cursor_x <= cursor_x == 63? cursor_x : cursor_x + 1;
                      write_cursor_pos <= 1;
                      case (ps2_byte)
                        8'h0e: new_char <= "`";
@@ -318,17 +318,17 @@ module top (
                        // control chars (backspace, return)
                        8'h66: begin
                           new_char_wen <= 0;
-	                  new_cursor_x <= cursor_x == 0? cursor_x : cursor_x - 1;
+                          new_cursor_x <= cursor_x == 0? cursor_x : cursor_x - 1;
                        end
                        8'h29: new_char <= " ";
                        8'h5a: begin
                           new_char_wen <= 0;
-	                  new_cursor_x <= 0;
-	                  new_cursor_y <= cursor_y == 15? cursor_y : cursor_y + 1;
+                          new_cursor_x <= 0;
+                          new_cursor_y <= cursor_y == 15? cursor_y : cursor_y + 1;
                        end
                        8'h12: begin
-                          lshift <= 1;
-	                  new_cursor_x <= cursor_x;
+                          lshift_pressed <= 1;
+                          new_cursor_x <= cursor_x;
                           new_char_wen <= 0;
                           write_cursor_pos <= 0;
                           // XXX this will not clear the char, maybe use a flag reg for this,
@@ -336,8 +336,8 @@ module top (
                           // // write_cursor_pos
                        end
                        8'h59: begin
-                          rshift <= 1;
-	                  new_cursor_x <= cursor_x;
+                          rshift_pressed <= 1;
+                          new_cursor_x <= cursor_x;
                           new_char_wen <= 0;
                           write_cursor_pos <= 0;
                           // XXX this will not clear the char, maybe use a flag reg for this,
@@ -346,11 +346,11 @@ module top (
                        end
                        default: begin
                           new_char_wen <= 0;
-	                  new_cursor_x <= cursor_x;
+                          new_cursor_x <= cursor_x;
                           write_cursor_pos <= 0;
                        end
                      endcase // case (ps2_byte)
-                  end // else: !if(lshift || rshift)
+                  end // else: !if(lshift_pressed || rshift_pressed)
                end // else: !if(ps2_long_keycode)
             end // else: !if(ps2_break_keycode)
          end // if (!write_cursor_pos && !new_char_wen)
