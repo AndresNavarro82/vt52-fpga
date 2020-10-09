@@ -76,6 +76,10 @@ module top (
        reset_cnt <= reset_cnt + reset;
 
    // uart pipeline in
+   wire [7:0] uart_out_data;
+   wire       uart_out_valid;
+   wire       uart_out_ready;
+
    wire [7:0] uart_in_data;
    wire       uart_in_valid;
    wire       uart_in_ready;
@@ -94,14 +98,33 @@ module top (
                   .uart_in_valid( uart_in_valid ),
                   .uart_in_ready( uart_in_ready ),
 
-                  .uart_out_data( uart_in_data ),
-                  .uart_out_valid( uart_in_valid ),
-                  .uart_out_ready( uart_in_ready  )
+                  .uart_out_data( uart_out_data ),
+                  .uart_out_valid( uart_out_valid ),
+                  .uart_out_ready( uart_out_ready  )
 
                   );
 
    // USB host detect
    assign pin_pu = 1'b1;
+
+   // XXX/TEMP: move data from keyboard->screen interfact to usb/serial
+   assign uart_in_data = new_char;
+   reg        new_char_valid;
+   assign uart_in_valid = new_char_valid;
+
+   always @ (posedge fast_clk or posedge reset) begin
+      if (reset) begin
+         new_char_valid <= 0;
+      end
+      else if (uart_in_valid && uart_in_ready) begin
+         // byte transferred
+         new_char_valid <= 0;
+      end
+      else if (px_clk && new_char_wen) begin
+         // only read data if the px_clk is not about to change
+         new_char_valid <= 1;
+      end
+   end
 
    reg [1:0] ps2_old_clks;
    reg [10:0] ps2_raw_data;
