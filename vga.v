@@ -9,6 +9,9 @@ module top (
             input       ps2_clk
             );
 
+   // pll outputs
+   wire locked;
+   wire fast_clk;
    // sync generator outputs
    wire [10:0]          hc;
    wire [10:0]          vc;
@@ -36,7 +39,8 @@ module top (
    reg        new_char_wen;
 
    // TODO rewrite this instantiations to used the param names
-   sync_generator mysync_generator(clk, clr, hsync, vsync, hblank, vblank, hc, vc, px_clk);
+   pll mypll(clk, fast_clk, locked);
+   sync_generator mysync_generator(fast_clk, clr, hsync, vsync, hblank, vblank, hc, vc, px_clk);
    char_generator mychar_generator(px_clk, clr, hblank, vblank, row, col, char_pixel,
                                    new_char_address, new_char, new_char_wen);
    led_counter myled_counter(vblank, led);

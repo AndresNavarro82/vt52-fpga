@@ -4,7 +4,7 @@
  * instead of (or in addition to) hc & vc
  */
 module sync_generator (
-		       input             clk12, // 12MHz clock
+		       input             clk48, // 48MHz clock
                        input             clr, // async reset
 		       output reg       hsync,
 		       output reg       vsync,
@@ -42,8 +42,7 @@ module sync_generator (
    localparam hsync_off = ~hsync_on;
    localparam vsync_off = ~vsync_on;
 
-   wire locked;
-   pll mypll(clk12, px_clk, locked);
+   clock_divider my_clock_divider(clk48, clr, px_clk);
 
    reg  [10:0] next_hc, next_vc;
 

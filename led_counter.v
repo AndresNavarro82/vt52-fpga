@@ -7,7 +7,7 @@ module led_counter(
                    );
 
    reg [9:0] counter = 10'b0;
-   assign led = counter[9];
+   assign led_out = counter[9];
    always @(posedge clk_in)
      begin
         counter <= counter + 1;

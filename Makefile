@@ -6,7 +6,7 @@ RTL_USB_DIR = tinyfpga_bx_usbserial/usb
 
 MEMS = $(BUFFER_DIR)/empty.hex $(BUFFER_DIR)/pantalla.hex \
 	$(FONT_DIR)/terminus_816_latin1.hex $(FONT_DIR)/terminus_816_bold_latin1.hex
-SRCS := char_buffer.v char_rom.v cursor_position.v pll.v vga.v \
+SRCS := char_buffer.v char_rom.v clock_divider.v cursor_position.v pll.v vga.v \
 	char_generator.v cursor_blinker.v led_counter.v sync_generator.v
 USB_SRCS = \
 	$(RTL_USB_DIR)/edge_detect.v \
@@ -30,8 +30,7 @@ PIN_DEF = $(NAME).pcf
 DEVICE = lp8k
 PACKAGE = cm81
 
-#CLK_MHZ = 48
-CLK_MHZ = 24
+CLK_MHZ = 48
 
 .PHONY: all clean
 
