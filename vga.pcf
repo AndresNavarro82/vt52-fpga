@@ -1,13 +1,22 @@
-set_io vsync 79
-set_io hsync 80
-set_io video 81
-set_io pclk 21
-set_io LED1 99
-set_io LED2 98
-set_io LED3 97
-set_io LED4 96
-set_io LED5 95
+##
+# Pin constraints for the TinyFPGA BX
+##
 
-set_io clr 78
-set_io ps2_data 91
-set_io ps2_clk 90
+# 16Mhz clock
+set_io --warn-no-port clk B2
+
+# async clear
+set_io --warn-no-port clr H9
+
+# vga outputs
+set_io --warn-no-port vsync G2
+set_io --warn-no-port hsync E1
+set_io --warn-no-port video H1
+
+# ps/2 inputs
+set_io --warn-no-port ps2_data C9
+set_io --warn-no-port ps2_clk A9
+
+# led
+set_io --warn-no-port led B3
+

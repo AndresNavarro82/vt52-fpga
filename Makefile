@@ -11,13 +11,13 @@ SRCS := $(wildcard *.v)
 all: $(NAME).bin
 
 prog: $(NAME).bin
-	iceprog $<
+	tinyprog -p $<
 
 $(NAME).bin: $(NAME).asc 
 	icepack $< $@
 
-$(NAME).asc: $(NAME).json
-	nextpnr-ice40 --hx1k --package tq144 --json $< --pcf $(NAME).pcf --asc $@
+$(NAME).asc: $(NAME).json $(NAME).pcf
+	nextpnr-ice40 --lp8k --package cm81 --json $< --pcf $(NAME).pcf --asc $@
 
 $(NAME).json: $(SRCS) $(MEMS)
 	yosys -p 'synth_ice40 -top top -json $@' $(SRCS)

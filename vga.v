@@ -1,14 +1,10 @@
 module top (
-	    input       pclk,
-	    input       clr, //asynchronous reset
+	    input       clk, // 16Mhz clock
+	    input       clr, // asynchronous reset
 	    output wire hsync,
 	    output wire vsync,
 	    output wire video,
-	    output wire LED1,
-	    output wire LED2,
-            output wire LED3,
-	    output wire LED4,
-	    output wire LED5,
+	    output wire led,
             input ps2_data,
             input ps2_clk
             );
@@ -40,10 +36,10 @@ module top (
    reg        new_char_wen;
 
    // TODO rewrite this instantiations to used the param names
-   sync_generator mysync_generator(pclk, clr, hsync, vsync, hblank, vblank, hc, vc, px_clk);
+   sync_generator mysync_generator(clk, clr, hsync, vsync, hblank, vblank, hc, vc, px_clk);
    char_generator mychar_generator(px_clk, clr, hblank, vblank, row, col, char_pixel,
                                    new_char_address, new_char, new_char_wen);
-   led_counter myled_counter(vblank, {LED1, LED2, LED3, LED4, LED5});
+   led_counter myled_counter(vblank, led);
    cursor_blinker mycursor_blinker(vblank, clr, write_cursor_pos, cursor_blink_on);
    cursor_position #(.SIZE(6)) mycursor_x (px_clk, clr, new_cursor_x, write_cursor_pos, cursor_x);
    cursor_position #(.SIZE(4)) mycursor_y (px_clk, clr, new_cursor_y, write_cursor_pos, cursor_y);
