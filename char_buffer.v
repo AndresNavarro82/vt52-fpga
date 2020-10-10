@@ -14,8 +14,8 @@ module char_buffer (din, waddr, write_en, clk, raddr, dout, read_en);
 
    initial
      begin
-//	$readmemh("pantalla/pantalla.hex", mem) ;
-	$readmemh("pantalla/empty.hex", mem) ;
+	$readmemh("pantalla/pantalla.hex", mem) ;
+//	$readmemh("pantalla/empty.hex", mem) ;
      end
 
    always @(posedge clk)

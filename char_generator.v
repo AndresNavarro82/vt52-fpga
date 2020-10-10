@@ -14,7 +14,9 @@ module char_generator (
                        output reg       pixel_out,
                        input [9:0]      buffer_waddr,
                        input [7:0]      buffer_din,
-                       input            buffer_wen
+                       input            buffer_wen,
+                       input [3:0]      buffer_first_row,
+                       input            buffer_first_row_wen
                        );
 
    reg [3:0] next_row;
@@ -27,6 +29,8 @@ module char_generator (
    wire [7:0] rom_char_row;
 
    reg hsync_flag, next_hsync_flag;
+
+   reg [3:0] first_row;
 
    // write function not used for now XXX
 /*
@@ -61,6 +65,7 @@ module char_generator (
              char <= 0;
              hsync_flag <= 0;
              char_row <= 0;
+             first_row <= 4'h2;
           end
         else
           begin
@@ -71,6 +76,9 @@ module char_generator (
              char <= next_char;
              hsync_flag <= next_hsync_flag;
              char_row <= next_char_row;
+             if (buffer_first_row_wen) begin
+               first_row <= buffer_first_row_wen;
+             end
           end // else: !if(clr == 1)
      end // always @ (posedge clk or posedge clr)
 
@@ -82,7 +90,7 @@ module char_generator (
              next_rowc = 0;
              next_col = 0;
              next_colc = 0;
-             next_char = 0;
+             next_char = { first_row, 6'h00 };
              next_hsync_flag = 0;
              next_char_row = rom_char_row;
           end
