@@ -26,20 +26,20 @@ module top (
    wire [3:0] cursor_y;
    wire [5:0] cursor_x;
    // to allow modifications
-   wire [3:0]  new_cursor_y = 0;
-   wire [5:0]  new_cursor_x = 0;
-   wire write_cursor_pos = 0;
+   wire [3:0]  new_cursor_y;
+   wire [5:0]  new_cursor_x;
+   wire new_cursor_wen;
 
    // char generator outputs
    wire [3:0] row;
    wire [5:0] col;
    wire      char_pixel;
    // char buffer inputs
-   wire [7:0] new_char = 1;
+   wire [7:0] new_char;
    // we can do this because width is a power of 2 (2^6 = 64)
    wire [9:0] new_char_address;
    assign new_char_address = {cursor_y, cursor_x};
-   wire  new_char_wen = 0;
+   wire  new_char_wen;
 
    // USB
    // XXX/TODO use this for for all clears???
@@ -53,25 +53,28 @@ module top (
    // uart pipeline in
    wire [7:0] uart_out_data;
    wire       uart_out_valid;
-   wire       uart_out_ready = 0;
+   wire       uart_out_ready;
 
    wire [7:0] uart_in_data;
    wire       uart_in_valid;
    wire       uart_in_ready;
 
-   // TODO rewrite this instantiations to used the param names
+   // TODO rewrite these instantiations to used the param names
    pll mypll(clk, fast_clk, locked);
    sync_generator mysync_generator(fast_clk, clr, hsync, vsync, hblank, vblank, hc, vc, px_clk);
    char_generator mychar_generator(px_clk, clr, hblank, vblank, row, col, char_pixel,
                                    new_char_address, new_char, new_char_wen);
    led_counter myled_counter(vblank, led);
-   cursor_blinker mycursor_blinker(vblank, clr, write_cursor_pos, cursor_blink_on);
-   cursor_position #(.SIZE(6)) mycursor_x (px_clk, clr, new_cursor_x, write_cursor_pos, cursor_x);
-   cursor_position #(.SIZE(4)) mycursor_y (px_clk, clr, new_cursor_y, write_cursor_pos, cursor_y);
+   cursor_blinker mycursor_blinker(vblank, clr, new_cursor_wen, cursor_blink_on);
+   cursor_position #(.SIZE(6)) mycursor_x (px_clk, clr, new_cursor_x, new_cursor_wen, cursor_x);
+   cursor_position #(.SIZE(4)) mycursor_y (px_clk, clr, new_cursor_y, new_cursor_wen, cursor_y);
    keyboard mykeyboard (fast_clk, clr, ps2_data, ps2_clk, uart_in_data, uart_in_valid,
                         uart_in_ready);
+   command_handler mycommand_handler (fast_clk, clr, px_clk, uart_out_data, uart_out_valid,
+                               uart_out_ready, new_char, new_char_wen,
+                               new_cursor_x, new_cursor_y, new_cursor_wen);
 
-   // usb uart - this instanciates the entire USB device.
+   // usb uart - this instantiates the entire USB device.
    usb_uart uart (
                   .clk_48mhz  (fast_clk),
                   .reset      (reset),

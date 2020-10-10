@@ -33,7 +33,7 @@ module keyboard(
       if (clr) begin
          data_q <= 0;
          valid_q <= 0;
-         
+
          // the clk is usually high and pulled down to start
          ps2_old_clks <= 2'b00;
          ps2_raw_data <= 0;
