@@ -36,9 +36,7 @@ module top (
    wire      char_pixel;
    // char buffer inputs
    wire [7:0] new_char;
-   // we can do this because width is a power of 2 (2^6 = 64)
    wire [9:0] new_char_address;
-   assign new_char_address = {cursor_y, cursor_x};
    wire  new_char_wen;
 
    // USB
@@ -71,7 +69,7 @@ module top (
    keyboard mykeyboard (fast_clk, clr, ps2_data, ps2_clk, uart_in_data, uart_in_valid,
                         uart_in_ready);
    command_handler mycommand_handler (fast_clk, reset, px_clk, uart_out_data, uart_out_valid,
-                               uart_out_ready, new_char, new_char_wen,
+                               uart_out_ready, new_char, new_char_address, new_char_wen,
                                new_cursor_x, new_cursor_y, new_cursor_wen);
 
    // usb uart - this instantiates the entire USB device.

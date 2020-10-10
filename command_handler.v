@@ -7,6 +7,7 @@ module command_handler(
                        input  valid,
                        output ready,
                        output [7:0] new_char,
+                       output [9:0] new_char_address,
                        output new_char_wen,
                        output [5:0] new_cursor_x,
                        output [3:0] new_cursor_y,
@@ -15,6 +16,7 @@ module command_handler(
 
    // XXX maybe ready should be registered? reg ready_q;
    reg [7:0] new_char_q;
+   reg [9:0] new_char_address_q;
    reg new_char_wen_q;
    reg [5:0] new_cursor_x_q;
    reg [3:0] new_cursor_y_q;
@@ -32,6 +34,7 @@ module command_handler(
    // accept 1 byte every two clocks
    assign ready = ~px_clk;
    assign new_char = new_char_q;
+   assign new_char_address = new_char_address_q;
    assign new_char_wen = new_char_wen_q;
    assign new_cursor_x = new_cursor_x_q;
    assign new_cursor_y = new_cursor_y_q;
@@ -40,6 +43,7 @@ module command_handler(
    always @(posedge clk or posedge clr) begin
       if (clr) begin
          new_char_q <= 0;
+         new_char_address_q <= 0;
          new_char_wen_q <= 0;
 
          new_cursor_x_q <= 0;
@@ -57,6 +61,8 @@ module command_handler(
                  if (data >= 8'h20 && data <= 8'h7e) begin
                     // printable char, easy
                     new_char_q <= data;
+                    // XXX we can do this because 64 is a power of 2
+                    new_char_address_q = {new_cursor_y_q, new_cursor_x_q};
                     new_char_wen_q <= 1;
                     // no auto linefeed
                     if (new_cursor_x_q != 63) begin
