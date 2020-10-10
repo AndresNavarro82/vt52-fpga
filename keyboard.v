@@ -170,7 +170,7 @@ module keyboard(
                        // space
                        8'h29: data_q <= " ";
                        // return
-                       8'h5a: data_q <= "\n";
+                       8'h5a: data_q <= "\r";
                        // shifts
                        8'h12: begin
                           lshift_pressed <= 1;
@@ -258,7 +258,7 @@ module keyboard(
                        // space
                        8'h29: data_q <= " ";
                        // return
-                       8'h5a: data_q <= "\n";
+                       8'h5a: data_q <= "\r";
                        // shifts
                        8'h12: begin
                           lshift_pressed <= 1;
