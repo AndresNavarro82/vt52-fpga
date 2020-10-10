@@ -1,3 +1,5 @@
+// TODO define constants for the control chars
+// TODO define constants for the control codes
 module keyboard(
                 input  clk,
                 input  clr,
