@@ -19,9 +19,14 @@ module command_handler(
    reg [5:0] new_cursor_x_q;
    reg [3:0] new_cursor_y_q;
    reg new_cursor_wen_q;
-   localparam state_idle = 0;
-   localparam state_esc = 1;
-   reg state;
+   reg [3:0] new_row;
+   // state: one hot encoding
+   localparam state_char = 8'b00000001;
+   localparam state_esc  = 8'b00000010;
+   localparam state_row  = 8'b00000100;
+   localparam state_col  = 8'b00001000;
+
+   reg [7:0] state;
 
    // the pixel clock & char memory run at half speed, so we can only
    // accept 1 byte every two clocks
@@ -41,12 +46,13 @@ module command_handler(
          new_cursor_y_q <= 0;
          new_cursor_wen_q <= 0;
 
-         state <= state_idle;
+         state <= state_char;
+         new_row <= 0;
       end
       else begin
          if (ready && valid) begin
             case (state)
-              state_idle: begin
+              state_char: begin
                  // new char arrived
                  if (data >= 8'h20 && data <= 8'h7e) begin
                     // printable char, easy
@@ -98,9 +104,9 @@ module command_handler(
                       8'h1b: begin
                          state <= state_esc;
                       end
-                    endcase
+                    endcase // case (data)
                  end // else: !if(data >= 8'h20 && data <= 8'h7e)
-              end // case: state_idle
+              end // case: state_char
               state_esc: begin
                  case (data)
                    // Basic cursor movement
@@ -110,47 +116,69 @@ module command_handler(
                          new_cursor_y_q <= new_cursor_y_q - 1;
                          new_cursor_wen_q <= 1;
                       end
-                      state <= state_idle;
+                      state <= state_char;
                    end
                    "B": begin
                       if (new_cursor_y_q != 15) begin
                          new_cursor_y_q <= new_cursor_y_q + 1;
                          new_cursor_wen_q <= 1;
                       end
-                      state <= state_idle;
+                      state <= state_char;
                    end
                    "C": begin
                       if (new_cursor_x_q != 63) begin
                          new_cursor_x_q <= new_cursor_x_q + 1;
                          new_cursor_wen_q <= 1;
                       end
-                      state <= state_idle;
+                      state <= state_char;
                    end
                    "D": begin
                       if (new_cursor_x_q != 0) begin
                          new_cursor_x_q <= new_cursor_x_q - 1;
                          new_cursor_wen_q <= 1;
                       end
-                      state <= state_idle;
+                      state <= state_char;
                    end
                    // Advanced cursor movement
                    // Esc-only, so no CR & TAB (covered before)
                    "H": begin
-                      // on VT52 two escapes don't cancel each other
                       new_cursor_x_q <= 0;
                       new_cursor_y_q <= 0;
                       new_cursor_wen_q <= 1;
-                      state <= state_idle;
+                      state <= state_char;
+                   end
+                   "Y": begin
+                      // "Y" received, expecting row & col
+                      state <= state_row;
                    end
                    // escape
                    8'h1b: begin
                       // on VT52 two escapes don't cancel each other
-                      state <= state_esc;
+                      // do nothing
                    end
-                   default:
-                     // unrecognized escape sequence, do nothing
-                     state <= state_idle;
-                 endcase
+                   default: begin
+                      // unrecognized escape sequence, back to normal
+                      state <= state_char;
+                   end
+                 endcase // case (data)
+              end // case: state_esc
+              state_row: begin
+                 // row received, now we need col
+                 new_row <= (data >= 8'h20 && data < (8'h20 + 16))? data - 8'h20 : new_cursor_y;
+                 state <= state_col;
+              end
+              state_col: begin
+                 // row & col received, move cursor and go back to idle
+                 // XXX I'm not sure what happens if data < 8'h20, this is a guess
+                 new_cursor_x_q <= (data >= 8'h20 && data < (8'h20 + 64))?
+                                   data - 8'h20 : 63;
+                 new_cursor_y_q <= new_row;
+                 new_cursor_wen_q <= 1;
+                 state <= state_char;
+              end // if (state == state_col)
+              default: begin
+                 // shouldn't happen
+                 state <= state_char;
               end
             endcase
          end // if (ready && valid)
@@ -159,6 +187,6 @@ module command_handler(
             new_char_wen_q <= 0;
             new_cursor_wen_q <= 0;
          end
-      end
-   end
+      end // else: !if(clr)
+   end // always @ (posedge clk or posedge clr)
 endmodule
