@@ -53,7 +53,7 @@ module command_handler(
                     new_char_q <= data;
                     new_char_wen_q <= 1;
                     // no auto linefeed
-                    if (new_cursor_x_q < 63) begin
+                    if (new_cursor_x_q != 63) begin
                        new_cursor_x_q <= new_cursor_x_q + 1;
                        new_cursor_wen_q <= 1;
                     end
@@ -74,7 +74,7 @@ module command_handler(
                             new_cursor_x_q <= (new_cursor_x_q + 8) & 6'h38;
                             new_cursor_wen_q <= 1;
                          end
-                         else if (new_cursor_x_q < 63) begin
+                         else if (new_cursor_x_q != 63) begin
                             new_cursor_x_q <= new_cursor_x_q + 1;
                             new_cursor_wen_q <= 1;
                          end
@@ -82,7 +82,7 @@ module command_handler(
                       // linefeed
                       8'h0a: begin
                          // XXX this should scroll if on the last line
-                         if (new_cursor_y_q < 15) begin
+                         if (new_cursor_y_q != 15) begin
                             new_cursor_y_q <= new_cursor_y_q + 1;
                             new_cursor_wen_q <= 1;
                          end
@@ -103,6 +103,38 @@ module command_handler(
               end // case: state_idle
               state_esc: begin
                  case (data)
+                   // Basic cursor movement
+                   // Esc-only, so no BS, LF & SPACE (covered before)
+                   "A": begin
+                      if (new_cursor_y_q != 0) begin
+                         new_cursor_y_q <= new_cursor_y_q - 1;
+                         new_cursor_wen_q <= 1;
+                      end
+                      state <= state_idle;
+                   end
+                   "B": begin
+                      if (new_cursor_y_q != 15) begin
+                         new_cursor_y_q <= new_cursor_y_q + 1;
+                         new_cursor_wen_q <= 1;
+                      end
+                      state <= state_idle;
+                   end
+                   "C": begin
+                      if (new_cursor_x_q != 63) begin
+                         new_cursor_x_q <= new_cursor_x_q + 1;
+                         new_cursor_wen_q <= 1;
+                      end
+                      state <= state_idle;
+                   end
+                   "D": begin
+                      if (new_cursor_x_q != 0) begin
+                         new_cursor_x_q <= new_cursor_x_q - 1;
+                         new_cursor_wen_q <= 1;
+                      end
+                      state <= state_idle;
+                   end
+                   // Advanced cursor movement
+                   // Esc-only, so no CR & TAB (covered before)
                    "H": begin
                       // on VT52 two escapes don't cancel each other
                       new_cursor_x_q <= 0;
