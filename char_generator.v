@@ -65,7 +65,7 @@ module char_generator (
              char <= 0;
              hsync_flag <= 0;
              char_row <= 0;
-             first_row <= 4'h2;
+             first_row <= 0;
           end
         else
           begin
@@ -77,7 +77,7 @@ module char_generator (
              hsync_flag <= next_hsync_flag;
              char_row <= next_char_row;
              if (buffer_first_row_wen) begin
-               first_row <= buffer_first_row_wen;
+               first_row <= buffer_first_row;
              end
           end // else: !if(clr == 1)
      end // always @ (posedge clk or posedge clr)
