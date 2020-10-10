@@ -70,7 +70,7 @@ module top (
    cursor_position #(.SIZE(4)) mycursor_y (px_clk, clr, new_cursor_y, new_cursor_wen, cursor_y);
    keyboard mykeyboard (fast_clk, clr, ps2_data, ps2_clk, uart_in_data, uart_in_valid,
                         uart_in_ready);
-   command_handler mycommand_handler (fast_clk, clr, px_clk, uart_out_data, uart_out_valid,
+   command_handler mycommand_handler (fast_clk, reset, px_clk, uart_out_data, uart_out_valid,
                                uart_out_ready, new_char, new_char_wen,
                                new_cursor_x, new_cursor_y, new_cursor_wen);
 
