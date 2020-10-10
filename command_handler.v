@@ -131,15 +131,13 @@ module command_handler(
                          end // case: 8'h09
                          // linefeed
                          8'h0a: begin
-                            // XXX this should scroll if on the last line
                             if (new_cursor_y_q == 15) begin
                                new_first_row_q <= new_first_row_q + 1;
                                new_first_row_wen_q <= 1;
                                // erase last line
                                new_char_q <= " ";
                                // XXX we can do this because 64 is a power of 2
-                               new_char_address_q <= {new_first_row_q,
-                                                      new_cursor_x_q};
+                               new_char_address_q <= {new_first_row_q, 6'h00};
                                new_char_wen_q <= 1;
                                // XXX we can do this because 64 is a power of 2
                                last_char_to_erase <= {new_first_row_q, 6'h3f};
@@ -168,16 +166,35 @@ module command_handler(
                     case (data)
                       // Basic cursor movement
                       // Esc-only, so no BS, LF & SPACE (covered before)
-                      "A": begin
-                         if (new_cursor_y_q != 0) begin
-                            new_cursor_y_q <= new_cursor_y_q - 1;
+                      "B": begin
+                         if (new_cursor_y_q != 15) begin
+                            new_cursor_y_q <= new_cursor_y_q + 1;
                             new_cursor_wen_q <= 1;
                          end
                          state <= state_char;
                       end
-                      "B": begin
-                         if (new_cursor_y_q != 15) begin
-                            new_cursor_y_q <= new_cursor_y_q + 1;
+                      "I": begin
+                         if (new_cursor_y_q == 0) begin
+                            new_first_row_q <= new_first_row_q - 1;
+                            new_first_row_wen_q <= 1;
+                            // erase last line
+                            new_char_q <= " ";
+                            // XXX we can do this because 64 is a power of 2
+                            new_char_address_q <= {(new_first_row_q-1), 6'h00};
+                            new_char_wen_q <= 1;
+                            // XXX we can do this because 64 is a power of 2
+                            last_char_to_erase <= {(new_first_row_q-1), 6'h3f};
+                            state <= state_erase;
+                         end
+                         else begin
+                            new_cursor_y_q <= new_cursor_y_q - 1;
+                            new_cursor_wen_q <= 1;
+                            state <= state_char;
+                         end
+                      end
+                      "A": begin
+                         if (new_cursor_y_q != 0) begin
+                            new_cursor_y_q <= new_cursor_y_q - 1;
                             new_cursor_wen_q <= 1;
                          end
                          state <= state_char;
