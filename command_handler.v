@@ -103,14 +103,14 @@ module command_handler(
               end // case: state_idle
               state_esc: begin
                  case (data)
-                   // escape
                    "H": begin
                       // on VT52 two escapes don't cancel each other
                       new_cursor_x_q <= 0;
                       new_cursor_y_q <= 0;
                       new_cursor_wen_q <= 1;
-                      state <= state_esc;
+                      state <= state_idle;
                    end
+                   // escape
                    8'h1b: begin
                       // on VT52 two escapes don't cancel each other
                       state <= state_esc;
