@@ -23,6 +23,9 @@ module command_handler(
    reg [5:0] new_cursor_x_q;
    reg [3:0] new_cursor_y_q;
    reg new_cursor_wen_q;
+   reg [3:0] new_first_row_q;
+   reg new_first_row_wen_q;
+
    reg [3:0] new_row;
    reg [9:0] last_char_to_erase;
 
@@ -45,8 +48,8 @@ module command_handler(
    assign new_cursor_x = new_cursor_x_q;
    assign new_cursor_y = new_cursor_y_q;
    assign new_cursor_wen = new_cursor_wen_q;
-   assign new_first_row = 4'h2;
-   assign new_first_row_wen = 0;
+   assign new_first_row = new_first_row_q;
+   assign new_first_row_wen = new_first_row_wen_q;
 
    always @(posedge clk or posedge clr) begin
       if (clr) begin
@@ -58,6 +61,9 @@ module command_handler(
          new_cursor_y_q <= 0;
          new_cursor_wen_q <= 0;
 
+         new_first_row_q <= 0;
+         new_first_row_wen_q <= 0;
+
          state <= state_char;
          new_row <= 0;
          last_char_to_erase <= 0;
@@ -68,6 +74,7 @@ module command_handler(
             // to write, so we should deassert the write signals
             if (new_char_wen_q) new_char_wen_q <= 0;
             if (new_cursor_wen_q) new_cursor_wen_q <= 0;
+            if (new_first_row_wen_q) new_first_row_wen_q <= 0;
          end
          else begin
             // only write to the char mem & cursor
@@ -93,7 +100,7 @@ module command_handler(
                        // printable char, easy
                        new_char_q <= data;
                        // XXX we can do this because 64 is a power of 2
-                       new_char_address_q <= {(new_cursor_y_q+new_first_row), new_cursor_x_q};
+                       new_char_address_q <= {(new_cursor_y_q+new_first_row_q), new_cursor_x_q};
                        new_char_wen_q <= 1;
                        // no auto linefeed
                        if (new_cursor_x_q != 63) begin
@@ -125,7 +132,20 @@ module command_handler(
                          // linefeed
                          8'h0a: begin
                             // XXX this should scroll if on the last line
-                            if (new_cursor_y_q != 15) begin
+                            if (new_cursor_y_q == 15) begin
+                               new_first_row_q <= new_first_row_q + 1;
+                               new_first_row_wen_q <= 1;
+                               // erase last line
+                               new_char_q <= " ";
+                               // XXX we can do this because 64 is a power of 2
+                               new_char_address_q <= {new_first_row_q,
+                                                      new_cursor_x_q};
+                               new_char_wen_q <= 1;
+                               // XXX we can do this because 64 is a power of 2
+                               last_char_to_erase <= {new_first_row_q, 6'h3f};
+                               state <= state_erase;
+                            end
+                            else begin
                                new_cursor_y_q <= new_cursor_y_q + 1;
                                new_cursor_wen_q <= 1;
                             end
@@ -167,6 +187,7 @@ module command_handler(
                             new_cursor_x_q <= new_cursor_x_q + 1;
                             new_cursor_wen_q <= 1;
                          end
+
                          state <= state_char;
                       end
                       "D": begin
@@ -193,21 +214,21 @@ module command_handler(
                          // erase to end of line
                          new_char_q <= " ";
                          // XXX we can do this because 64 is a power of 2
-                         new_char_address_q <= {(new_cursor_y_q+new_first_row),
+                         new_char_address_q <= {(new_cursor_y_q+new_first_row_q),
                                                 new_cursor_x_q};
                          new_char_wen_q <= 1;
                          // XXX we can do this because 64 is a power of 2
-                         last_char_to_erase <= {(new_cursor_y_q+new_first_row), 6'h3f};
+                         last_char_to_erase <= {(new_cursor_y_q+new_first_row_q), 6'h3f};
                          state <= state_erase;
                       end
                       "J": begin
                          // erase to end of screen
                          new_char_q <= " ";
                          // XXX we can do this because 64 is a power of 2
-                         new_char_address_q <= {(new_cursor_y_q+new_first_row),
+                         new_char_address_q <= {(new_cursor_y_q+new_first_row_q),
                                                 new_cursor_x_q};
                          new_char_wen_q <= 1;
-                         last_char_to_erase <= { (new_first_row-1),
+                         last_char_to_erase <= { (new_first_row_q-1),
                                                  6'h3f };
                          state <= state_erase;
                       end
