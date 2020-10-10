@@ -161,10 +161,17 @@ module keyboard(
                        8'h49: data_q <= ">";
                        8'h4a: data_q <= "?";
 
+                       // escape
+                       8'h76: data_q <= "\033";
+                       // tab
+                       8'h0d: data_q <= "\t";
+                       // backspace
                        8'h66: data_q <= "\010";
+                       // space
                        8'h29: data_q <= " ";
+                       // return
                        8'h5a: data_q <= "\n";
-
+                       // shifts
                        8'h12: begin
                           lshift_pressed <= 1;
                           valid_q <= 0;
@@ -178,6 +185,10 @@ module keyboard(
                           // XXX this will not clear the char, maybe use a flag reg for this,
                           // like char processed, instead of relying on new_char_wen &
                           // // write_cursor_pos
+                       end
+                       // caps lock
+                       8'h58: begin
+                          // TODO caps lock
                        end
                        default: begin
                           valid_q <= 0;
@@ -238,11 +249,17 @@ module keyboard(
                        8'h41: data_q <= ",";
                        8'h49: data_q <= ".";
                        8'h4a: data_q <= "/";
-                       // control chars (backspace, return)
+                       // escape
+                       8'h76: data_q <= "\033";
+                       // tab
+                       8'h0d: data_q <= "\t";
+                       // backspace
                        8'h66: data_q <= "\010";
+                       // space
                        8'h29: data_q <= " ";
+                       // return
                        8'h5a: data_q <= "\n";
-
+                       // shifts
                        8'h12: begin
                           lshift_pressed <= 1;
                           valid_q <= 0;
@@ -256,6 +273,10 @@ module keyboard(
                           // XXX this will not clear the char, maybe use a flag reg for this,
                           // like char processed, instead of relying on new_char_wen &
                           // // write_cursor_pos
+                       end
+                       // caps lock
+                       8'h58: begin
+                          // TODO caps lock
                        end
                        default: begin
                           valid_q <= 0;
