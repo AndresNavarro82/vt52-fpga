@@ -379,8 +379,8 @@ module top (
                        8'h32: new_char <= "b";
                        8'h31: new_char <= "n";
                        8'h3a: new_char <= "m";
-                       8'h41: new_char <= ".";
-                       8'h49: new_char <= ",";
+                       8'h41: new_char <= ",";
+                       8'h49: new_char <= ".";
                        8'h4a: new_char <= "/";
                        // control chars (backspace, return)
                        8'h66: begin
