@@ -40,14 +40,59 @@ module command_handler(
       else begin
          if (ready && valid) begin
             // new char arrived
-            //case (data)
-            new_char_q <= data;
-            new_char_wen_q <= 1;
-            if (new_cursor_x_q < 63) begin
-               new_cursor_x_q <= new_cursor_x_q + 1;
-               new_cursor_wen_q <= 1;
+            if (data >= 8'h20 && data <= 8'h7e) begin
+               // printable char, easy
+               new_char_q <= data;
+               new_char_wen_q <= 1;
+               // no auto linefeed
+               if (new_cursor_x_q < 63) begin
+                  new_cursor_x_q <= new_cursor_x_q + 1;
+                  new_cursor_wen_q <= 1;
+               end
             end
-         end
+            else begin
+               case (data)
+                 // backspace
+                 8'h08: begin
+                    if (new_cursor_x_q != 0) begin
+                       new_cursor_x_q <= new_cursor_x_q - 1;
+                       new_cursor_wen_q <= 1;
+                    end
+                 end
+                 // tab
+                 8'h09: begin
+                    // go until the last tab stop by 8 spaces, then 1 by 1
+                    if (new_cursor_x_q < 55) begin
+                       new_cursor_x_q <= (new_cursor_x_q + 8) & 6'h38;
+                       new_cursor_wen_q <= 1;
+                    end
+                    else if (new_cursor_x_q < 63) begin
+                       new_cursor_x_q <= new_cursor_x_q + 1;
+                       new_cursor_wen_q <= 1;
+                    end
+                 end // case: 8'h09
+                 // linefeed
+                 8'h0a: begin
+                    // XXX this should scroll if on the last line
+                    if (new_cursor_y_q < 15) begin
+                       new_cursor_y_q <= new_cursor_y_q + 1;
+                       new_cursor_wen_q <= 1;
+                    end
+                 end
+                 // carriage return
+                 8'h0d: begin
+                    if (new_cursor_x != 0) begin
+                       new_cursor_x_q <= 0;
+                       new_cursor_wen_q <= 1;
+                    end
+                 end
+                 // escape
+                 8'h1b: begin
+                 // TODO handle escape codes
+                 end
+               endcase
+            end // else: !if(data >= 8'h20 && data <= 8'h7e)
+         end // if (ready && valid)
          else if (new_char_wen_q || new_cursor_wen_q) begin
             // after one clock deassert the write signals
             new_char_wen_q <= 0;
