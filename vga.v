@@ -80,11 +80,9 @@ module top (
    usb_uart uart (
                   .clk_48mhz  (fast_clk),
                   .reset      (reset),
-
                   // pins
                   .pin_usb_p( pin_usb_p ),
                   .pin_usb_n( pin_usb_n ),
-
                   // uart pipeline in (from keyboard)
                   .uart_in_data( uart_in_data ),
                   .uart_in_valid( uart_in_valid ),
