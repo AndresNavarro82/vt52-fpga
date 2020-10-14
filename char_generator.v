@@ -1,14 +1,17 @@
 /**
  * 80x25 char generator (80x25 char size)
  * TODO maybe this could use more of the sync generator output
- * instead of counting again here
+ * instead of counting again here, or even fuse the two modules
  */
 module char_generator
-  #(parameter COLUMNS = 80,
+  #(parameter ROWS = 25,
+    parameter COLS = 80,
     parameter ROW_BITS = 5,
     // XXX could be calculated from COLUMNS
     parameter COL_BITS = 7,
-    parameter ADDR_BITS = 11)
+    parameter ADDR_BITS = 11,
+    parameter PAST_LAST_ROW = ROWS * COLS
+    )
    (input clk, // pixel clock
     input clr, // async reset
     input hblank,
@@ -108,15 +111,19 @@ module char_generator
                   if (rowc == 15)
                     begin
                        // we are moving to the next row, so char
-                       // is already set at the correct value
+                       // is already set at the correct value, unless
+                       // we reached the end of the buffer
                        next_row = row + 1;
                        next_rowc = 0;
+                       if (char == PAST_LAST_ROW) begin
+                          next_char = 0;
+                       end
                     end
                   else
                     begin
                        // we are still on the same row, so
                        // go back to the first char in this line
-                       next_char = char - COLUMNS;
+                       next_char = char - COLS;
                        next_rowc = rowc + 1;
                     end // else: !if(rowc == 15)
                end // if (hsync_flag == 1)

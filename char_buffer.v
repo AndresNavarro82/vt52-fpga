@@ -2,7 +2,7 @@
  * Char Buffer RAM (2000x8)
  * (25 lines of 80 characters)
  */
-module char_buffer 
+module char_buffer
   #(parameter BUF_SIZE = 2000,
     parameter ADDR_BITS = 11)
    (din, waddr, write_en, clk, raddr, dout, read_en);
