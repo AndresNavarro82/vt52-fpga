@@ -18,23 +18,15 @@ module sync_generator (
    // VGA Signal 640x400 @ 70 Hz timing
    // from http://tinyvga.com/vga-timing/640x400@70Hz
    parameter hpixels = 800; // horizontal pixels per line
-   // XXX removed some columns to leave just 64 columns of 8 pixels (512)
-//   parameter hbp = 48; 	// horizontal back porch
-//   parameter hvisible = 640; // horizontal visible area pixels
-//   parameter hfp = 16; 	// horizontal front porch
-   parameter hbp = 48 + 64; 	// horizontal back porch
-   parameter hvisible = 640 - 128; // horizontal visible area pixels
-   parameter hfp = 16 + 64; 	// horizontal front porch
+   parameter hbp = 48; 	// horizontal back porch
+   parameter hvisible = 640; // horizontal visible area pixels
+   parameter hfp = 16; 	// horizontal front porch
    parameter hpulse = 96;	// hsync pulse length
 
    parameter vlines = 449; // vertical lines per frame
-   // XXX removed some lines to leave just 16 lines of 16 pixels (256)
-   //    parameter vbp = 35; 	// vertical back porch
-   //    parameter vvisible = 400; // vertical visible area lines
-   //    parameter vfp = 12; 	// vertical front porch
-   parameter vbp = 35+72; 	// vertical back porch
-   parameter vvisible = 400 - 144; // vertical visible area lines
-   parameter vfp = 12+72; 	// vertical front porch
+   parameter vbp = 35; 	// vertical back porch
+   parameter vvisible = 400; // vertical visible area lines
+   parameter vfp = 12; 	// vertical front porch
    parameter vpulse = 2; 	// vsync pulse length
 
    parameter hsync_on = 1'b0;

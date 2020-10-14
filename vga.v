@@ -11,6 +11,9 @@ module top (
             inout       pin_usb_n,
             output      pin_pu
             );
+   parameter ROW_BITS = 5;
+   parameter COL_BITS = 7;
+   parameter ADDR_BITS = 11;
 
    // pll outputs
    wire locked;
@@ -23,23 +26,23 @@ module top (
 
    // cursor
    wire                 cursor_blink_on;
-   wire [3:0] cursor_y;
-   wire [5:0] cursor_x;
+   wire [ROW_BITS-1:0] cursor_y;
+   wire [COL_BITS-1:0] cursor_x;
    // to allow modifications
-   wire [3:0]  new_cursor_y;
-   wire [5:0]  new_cursor_x;
+   wire [ROW_BITS-1:0]  new_cursor_y;
+   wire [COL_BITS-1:0]  new_cursor_x;
    wire new_cursor_wen;
 
    // char generator outputs
-   wire [3:0] row;
-   wire [5:0] col;
+   wire [ROW_BITS-1:0] row;
+   wire [COL_BITS-1:0] col;
    wire      char_pixel;
    // char buffer inputs
    wire [7:0] new_char;
-   wire [9:0] new_char_address;
+   wire [ADDR_BITS-1:0] new_char_address;
    wire new_char_wen;
-   wire [3:0] new_first_row;
-   wire new_first_row_wen;
+   wire [ADDR_BITS-1:0] new_first_char;
+   wire new_first_char_wen;
 
    // USB
    // XXX/TODO use this for for all clears???
@@ -62,19 +65,20 @@ module top (
    // TODO rewrite these instantiations to used the param names
    pll mypll(clk, fast_clk, locked);
    sync_generator mysync_generator(fast_clk, clr, hsync, vsync, hblank, vblank, hc, vc, px_clk);
+   // TODO pass COLUMNS & ROWS PARAMS
    char_generator mychar_generator(px_clk, clr, hblank, vblank, row, col, char_pixel,
                                    new_char_address, new_char, new_char_wen,
-                                   new_first_row, new_first_row_wen);
+                                   new_first_char, new_first_char_wen);
    led_counter myled_counter(vblank, led);
    cursor_blinker mycursor_blinker(vblank, clr, new_cursor_wen, cursor_blink_on);
-   cursor_position #(.SIZE(6)) mycursor_x (px_clk, clr, new_cursor_x, new_cursor_wen, cursor_x);
-   cursor_position #(.SIZE(4)) mycursor_y (px_clk, clr, new_cursor_y, new_cursor_wen, cursor_y);
+   cursor_position #(.SIZE(7)) mycursor_x (px_clk, clr, new_cursor_x, new_cursor_wen, cursor_x);
+   cursor_position #(.SIZE(5)) mycursor_y (px_clk, clr, new_cursor_y, new_cursor_wen, cursor_y);
    keyboard mykeyboard (fast_clk, clr, ps2_data, ps2_clk, uart_in_data, uart_in_valid,
                         uart_in_ready);
    command_handler mycommand_handler (fast_clk, reset, px_clk, uart_out_data, uart_out_valid,
                                       uart_out_ready, new_char, new_char_address, new_char_wen,
                                       new_cursor_x, new_cursor_y, new_cursor_wen,
-                                      new_first_row, new_first_row_wen);
+                                      new_first_char, new_first_char_wen);
 
    // usb uart - this instantiates the entire USB device.
    usb_uart uart (

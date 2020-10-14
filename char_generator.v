@@ -1,43 +1,40 @@
 /**
- * 64x16 char generator (8x16 char size)
+ * 80x25 char generator (80x25 char size)
  * TODO maybe this could use more of the sync generator output
  * instead of counting again here
- * TODO add inputs to write to char buffer
  */
-module char_generator (
-                       input            clk, // pixel clock
-                       input            clr, // async reset
-                       input            hblank,
-                       input            vblank,
-                       output reg [3:0] row,
-                       output reg [5:0] col,
-                       output reg       pixel_out,
-                       input [9:0]      buffer_waddr,
-                       input [7:0]      buffer_din,
-                       input            buffer_wen,
-                       input [3:0]      buffer_first_row,
-                       input            buffer_first_row_wen
-                       );
-
-   reg [3:0] next_row;
-   reg [5:0] next_col;
+module char_generator
+  #(parameter COLUMNS = 80,
+    parameter ROW_BITS = 5,
+    // XXX could be calculated from COLUMNS
+    parameter COL_BITS = 7,
+    parameter ADDR_BITS = 11)
+   (input clk, // pixel clock
+    input clr, // async reset
+    input hblank,
+    input vblank,
+    output reg [ROW_BITS-1:0] row,
+    output reg [COL_BITS-1:0] col,
+    output reg pixel_out,
+    input [ADDR_BITS-1:0] buffer_waddr,
+    input [7:0] buffer_din,
+    input buffer_wen,
+    input [ADDR_BITS-1:0] buffer_first_char,
+    input buffer_first_char_wen
+    );
+   reg [ROW_BITS-1:0] next_row;
+   reg [COL_BITS-1:0] next_col;
    reg [2:0] colc, next_colc;
    reg [3:0] rowc, next_rowc;
 
-   reg [9:0] char, next_char;
+   reg [ADDR_BITS-1:0] char, next_char;
    reg [7:0] char_row, next_char_row;
    wire [7:0] rom_char_row;
 
    reg hsync_flag, next_hsync_flag;
 
-   reg [3:0] first_row;
+   reg [ADDR_BITS-1:0] first_char;
 
-   // write function not used for now XXX
-/*
-   wire [7:0] buffer_din = 8'b0;
-   wire [9:0] buffer_waddr = 10'b0;
-   wire       buffer_wen = 1'b0;
- */
    // XXX for now we are constantly reading from both
    // rom & ram, we clock the row on the last column of the char
    // (or hblank)
@@ -45,7 +42,7 @@ module char_generator (
 
    // The address of the char row is formed with the char and the row offset
    // we can get away with the addition here because we have a power of 2
-   // number of columns
+   // number of rows (16 in this case)
    wire [7:0] char_address_high;
    char_buffer mychar_buffer(buffer_din, buffer_waddr, buffer_wen, clk, next_char, char_address_high, buffer_ren);
    wire [11:0] char_address = { char_address_high, rowc };
@@ -65,7 +62,7 @@ module char_generator (
              char <= 0;
              hsync_flag <= 0;
              char_row <= 0;
-             first_row <= 0;
+             first_char <= 0;
           end
         else
           begin
@@ -76,8 +73,8 @@ module char_generator (
              char <= next_char;
              hsync_flag <= next_hsync_flag;
              char_row <= next_char_row;
-             if (buffer_first_row_wen) begin
-               first_row <= buffer_first_row;
+             if (buffer_first_char_wen) begin
+               first_char <= buffer_first_char;
              end
           end // else: !if(clr == 1)
      end // always @ (posedge clk or posedge clr)
@@ -90,7 +87,7 @@ module char_generator (
              next_rowc = 0;
              next_col = 0;
              next_colc = 0;
-             next_char = { first_row, 6'h00 };
+             next_char = first_char;
              next_hsync_flag = 0;
              next_char_row = rom_char_row;
           end
@@ -119,7 +116,7 @@ module char_generator (
                     begin
                        // we are still on the same row, so
                        // go back to the first char in this line
-                       next_char = char - 64;
+                       next_char = char - COLUMNS;
                        next_rowc = rowc + 1;
                     end // else: !if(rowc == 15)
                end // if (hsync_flag == 1)

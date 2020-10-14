@@ -2,7 +2,7 @@
  * Cursor position (just one dimension, we'll need two of these)
  */
 module cursor_position (clk, clr, ipos, wen, opos);
-   parameter SIZE = 4;
+   parameter SIZE = 8;
    input wire clk;
    input wire clr;
    input wire [SIZE-1:0] ipos;
