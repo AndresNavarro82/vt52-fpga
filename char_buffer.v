@@ -1,6 +1,6 @@
 /**
- * Char Buffer RAM (1kx8)
- * (16 lines of 64 characters)
+ * Char Buffer RAM (2000x8)
+ * (25 lines of 80 characters)
  */
 module char_buffer (din, waddr, write_en, clk, raddr, dout, read_en);
    input wire [7:0] din;
@@ -10,12 +10,12 @@ module char_buffer (din, waddr, write_en, clk, raddr, dout, read_en);
    output reg [7:0] dout;
    input wire       read_en;
 
-   reg [7:0]    mem [1023:0];
+   reg [7:0]    mem [1999:0];
 
    initial
      begin
-//	$readmemh("pantalla/pantalla.hex", mem) ;
-	$readmemh("pantalla/empty.hex", mem) ;
+	$readmemh("pantalla/pantalla.hex", mem) ;
+//	$readmemh("pantalla/empty.hex", mem) ;
      end
 
    always @(posedge clk)
