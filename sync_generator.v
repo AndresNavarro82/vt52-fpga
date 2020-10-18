@@ -2,13 +2,13 @@
  * VGA sync generator
  */
 module sync_generator (
-		       input clk,
+                       input clk,
                        input clr,
-		       output reg hsync,
-		       output reg vsync,
-		       output reg hblank,
-		       output reg vblank
-		       );
+                       output reg hsync,
+                       output reg vsync,
+                       output reg hblank,
+                       output reg vblank
+                       );
 
    // VGA Signal 640x400 @ 70 Hz timing
    // from http://tinyvga.com/vga-timing/640x400@70Hz
@@ -42,8 +42,8 @@ module sync_generator (
    // horizontal & vertical counters
    always @(posedge clk or posedge clr) begin
       if (clr) begin
-	 hc <= 0;
-	 vc <= 0;
+         hc <= 0;
+         vc <= 0;
       end
       else begin
          hc <= next_hc;
@@ -54,11 +54,11 @@ module sync_generator (
    // next_hc & next_vc
    always @(*) begin
       if (hc == hpixels) begin
-	 next_hc = 0;
-	 next_vc = (vc == vlines)? 0 : vc + 1;
+         next_hc = 0;
+         next_vc = (vc == vlines)? 0 : vc + 1;
       end
       else begin
-	 next_hc = hc + 1;
+         next_hc = hc + 1;
          next_vc = vc;
       end
    end

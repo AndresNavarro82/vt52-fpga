@@ -58,7 +58,7 @@ module char_generator
    char_rom mychar_rom(char_address, clk, rom_char_row);
 
    always @(posedge clk or posedge clr) begin
-      if (clr == 1) begin
+      if (clr) begin
          row <= 0;
          col <= 0;
          rowc <= 0;
