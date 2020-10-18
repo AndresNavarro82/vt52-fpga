@@ -3,6 +3,7 @@ module command_handler
   #(parameter ROWS = 24,
     parameter COLS = 80,
     parameter LAST_ROW = (ROWS-1) * COLS,
+    parameter ONE_PAST_LAST_ROW = ROWS * COLS,
     parameter ROW_BITS = 5,
     parameter COL_BITS = 7,
     parameter ADDR_BITS = 11)
@@ -34,7 +35,10 @@ module command_handler
 
    reg [ROW_BITS-1:0] new_row;
    reg [COL_BITS-1:0] new_col;
-   reg [ADDR_BITS-1:0] new_addr;
+   // This may temporarily hold a value that's twice the size of a regular
+   // address (we adjust it at a later state)
+   // so we DON'T substract 1 from ADDR_BITS
+   reg [ADDR_BITS:0] new_addr;
    reg [ADDR_BITS-1:0] last_char_to_erase;
 
    reg [ADDR_BITS-1:0] current_row_addr;
@@ -328,6 +332,7 @@ module command_handler
                             data - 8'h20 : (COLS-1);
                  // this may need substracting if it's more than LAST_ROW
                  // but we'll do it in the next state
+                 // new_addr has an extra bit to avoid overflows
                  new_addr <= new_row * 80 + new_first_char_q;
                  state <= state_addr;
               end
@@ -352,7 +357,7 @@ module command_handler
               state_addr: begin
                  // after possibly adjusting the address we are ready to
                  // move the cursor
-                 new_addr <= new_addr > LAST_ROW? new_addr - LAST_ROW : new_addr;
+                 new_addr <= new_addr > LAST_ROW? new_addr - ONE_PAST_LAST_ROW : new_addr;
                  state <= state_cursor;
               end
               state_cursor: begin
@@ -360,8 +365,8 @@ module command_handler
                  new_cursor_x_q <= new_col;
                  new_cursor_y_q <= new_row;
                  new_cursor_wen_q <= 1;
-
-                 current_row_addr <= new_addr;
+                 // once adjusted, we can ignore the higher bit
+                 current_row_addr <= new_addr[ADDR_BITS-1:0];
                  current_char_addr <= new_addr + new_col;
 
                  state <= state_char;
