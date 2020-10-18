@@ -33,22 +33,30 @@ module command_handler
    reg new_first_char_wen_q;
 
    reg [ROW_BITS-1:0] new_row;
+   reg [COL_BITS-1:0] new_col;
+   reg [ADDR_BITS-1:0] new_addr;
    reg [ADDR_BITS-1:0] last_char_to_erase;
 
    reg [ADDR_BITS-1:0] current_row_addr;
    reg [ADDR_BITS-1:0] current_char_addr;
 
    // state: one hot encoding
+   // char is the normal state
+   // row, col, addr & cursor form a pipeline for Esc-Y
+   // no input accepted on addr & cursor
+   // erase is for the erase loop, no input is accepted on this state
    localparam state_char   = 8'b00000001;
    localparam state_esc    = 8'b00000010;
    localparam state_row    = 8'b00000100;
    localparam state_col    = 8'b00001000;
-   localparam state_erase  = 8'b00010000;
+   localparam state_addr   = 8'b00010000;
+   localparam state_cursor = 8'b00100000;
+   localparam state_erase  = 8'b01000000;
 
    reg [7:0] state;
 
    // if we are erasing part of the screen we can't receive new commands
-   assign ready = (state != state_erase);
+   assign ready = (state & (state_erase | state_cursor | state_addr)) == 0;
    assign new_char = new_char_q;
    assign new_char_address = new_char_address_q;
    assign new_char_wen = new_char_wen_q;
@@ -76,25 +84,17 @@ module command_handler
 
          state <= state_char;
          new_row <= 0;
+         new_col <= 0;
+         new_addr <= 0;
          last_char_to_erase <= 0;
       end
       else begin
+         // after one clock cycle we should turn these off
          if (new_char_wen_q) new_char_wen_q <= 0;
          if (new_cursor_wen_q) new_cursor_wen_q <= 0;
          if (new_first_char_wen_q) new_first_char_wen_q <= 0;
-         if (state == state_erase) begin
-            if (new_char_address_q == last_char_to_erase) begin
-               // all chars erased, resume normal operation
-               state <= state_char;
-            end
-            else begin
-               // keep erasing, but be careful if reaching the end of the buffer
-               new_char_address_q = new_char_address_q == LAST_ROW + (COLS+1)?
-                                    0 : new_char_address_q + 1;
-               new_char_wen_q <= 1;
-            end
-         end
-         else if (ready && valid) begin
+         // first the states that consume input
+         if (ready && valid) begin
             case (state)
               state_char: begin
                  // new char arrived
@@ -322,32 +322,52 @@ module command_handler
                  state <= state_col;
               end
               state_col: begin
-                 // row & col received, move cursor and go back to idle
+                 // row & col received, now we need to calculate the new row address
                  // XXX I'm not sure what happens if data < 8'h20, this is a guess
-                 new_cursor_x_q <= (data >= 8'h20 && data < (8'h20 + COLS))?
-                                   data - 8'h20 : (COLS-1);
+                 new_col <= (data >= 8'h20 && data < (8'h20 + COLS))?
+                            data - 8'h20 : (COLS-1);
+                 // this may need substracting if it's more than LAST_ROW
+                 // but we'll do it in the next state
+                 new_addr <= new_row * 80 + new_first_char_q;
+                 state <= state_addr;
+              end
+              // states erase, addr & cursor aren't here as they don't consume input
+            endcase // case (state)
+         end // if (ready && valid)
+         // now we can handle the states that don't consume input
+         else begin
+            case (state)
+              state_erase: begin
+                 if (new_char_address_q == last_char_to_erase) begin
+                    // all chars erased, resume normal operation
+                    state <= state_char;
+                 end
+                 else begin
+                    // keep erasing, but be careful if reaching the end of the buffer
+                    new_char_address_q = new_char_address_q == LAST_ROW + (COLS+1)?
+                                         0 : new_char_address_q + 1;
+                    new_char_wen_q <= 1;
+                 end
+              end
+              state_addr: begin
+                 // after possibly adjusting the address we are ready to
+                 // move the cursor
+                 new_addr <= new_addr > LAST_ROW? new_addr - LAST_ROW : new_addr;
+                 state <= state_cursor;
+              end
+              state_cursor: begin
+                 // move cursor and go back to idle
+                 new_cursor_x_q <= new_col;
                  new_cursor_y_q <= new_row;
                  new_cursor_wen_q <= 1;
-                 // TODO use local wires to avoid repetition
-                 current_row_addr <= new_row * 80 + new_first_char_q > LAST_ROW?
-                                     new_row * 80 + new_first_char_q - LAST_ROW :
-                                     new_row * 80 + new_first_char_q;
-                 current_char_addr <= (new_row * 80 + new_first_char_q > LAST_ROW?
-                                       new_row * 80 + new_first_char_q - LAST_ROW :
-                                       new_row * 80 + new_first_char_q) +
-                                      ((data >= 8'h20 && data < (8'h20 + COLS))?
-                                       data - 8'h20 : (COLS-1));
+
+                 current_row_addr <= new_addr;
+                 current_char_addr <= new_addr + new_col;
 
                  state <= state_char;
               end // if (state == state_col)
-              // we can't have state_erase here, because in that
-              // case valid wouldn't be true and we don't need a new char
-              default: begin
-                 // shouldn't happen
-                 state <= state_char;
-              end
             endcase // case (state)
-         end // if (ready && valid)
+         end // else: !if(ready && valid)
       end // else: !if(clr)
    end // always @ (posedge clk or posedge clr)
 endmodule
