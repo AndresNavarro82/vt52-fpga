@@ -1,95 +1,81 @@
 /**
  * VGA sync generator
- * TODO maybe this should output the real x and y (inside the visible area)
- * instead of (or in addition to) hc & vc
  */
 module sync_generator (
-		       input             clk48, // 48MHz clock
-                       input             clr, // async reset
-		       output reg       hsync,
-		       output reg       vsync,
-		       output reg       hblank,
-		       output reg       vblank,
-                       output reg [10:0] hc,
-                       output reg [10:0] vc,
-                       output wire       px_clk
+		       input clk,
+                       input clr,
+		       output reg hsync,
+		       output reg vsync,
+		       output reg hblank,
+		       output reg vblank
 		       );
 
    // VGA Signal 640x400 @ 70 Hz timing
    // from http://tinyvga.com/vga-timing/640x400@70Hz
-   parameter hpixels = 800; // horizontal pixels per line
-   parameter hbp = 48; 	// horizontal back porch
-   parameter hvisible = 640; // horizontal visible area pixels
-   parameter hfp = 16; 	// horizontal front porch
-   parameter hpulse = 96;	// hsync pulse length
-
-   parameter vlines = 449; // vertical lines per frame
-   parameter vbp = 35; 	// vertical back porch
-   parameter vvisible = 400; // vertical visible area lines
-   parameter vfp = 12; 	// vertical front porch
-   parameter vpulse = 2; 	// vsync pulse length
-
-   parameter hsync_on = 1'b0;
-   parameter vsync_on = 1'b1;
+   // Total size, visible size, front and back proches and sync pulse size
+   // clk is 48Mhz (because USB...), so twice what we need (around 25Mhz)
+   // Every horizontal value is multiplied by two because we have a clock
+   // that runs at twice the pixel rate
+   localparam hbits = 12;
+   localparam hpixels = 2*800;
+   localparam hbp = 2*48;
+   localparam hvisible = 2*640;
+   localparam hfp = 2*16;
+   localparam hpulse = 2*96;
+   // Added 8 to vbp and vfp to compensate for the missing character row
+   // (24 instead of 25, each row is 16 pixels)
+   localparam vbits = 12;
+   localparam vlines = 449;
+   localparam vbp = 35 + 8;
+   localparam vvisible = 400 - 16;
+   localparam vfp = 12 + 8;
+   localparam vpulse = 2;
+   // sync polarity
+   localparam hsync_on = 1'b0;
+   localparam vsync_on = 1'b1;
    localparam hsync_off = ~hsync_on;
    localparam vsync_off = ~vsync_on;
-
-   clock_divider my_clock_divider(clk48, clr, px_clk);
-
-   reg  [10:0] next_hc, next_vc;
+   // horizontal & vertical counters
+   reg [hbits-1:0] hc, next_hc;
+   reg [vbits-1:0] vc, next_vc;
 
    // horizontal & vertical counters
-   always @(posedge px_clk or posedge clr)
-     begin
-	// reset condition
-	if (clr == 1)
-	  begin
-	     hc <= 0;
-	     vc <= 0;
- 	  end
-	else
-          begin
-             hc = next_hc;
-             vc = next_vc;
-          end
-     end
+   always @(posedge clk or posedge clr) begin
+      if (clr) begin
+	 hc <= 0;
+	 vc <= 0;
+      end
+      else begin
+         hc <= next_hc;
+         vc <= next_vc;
+      end
+   end
 
-
-   always @(hc or vc)
-     begin
-        // horizontal & vertical counters
-        if (hc == hpixels) // end of line reached
-	  begin
-	     next_hc = 0;
-	     if (vc == vlines) // end of screen reached, go back
-	       next_vc = 0;
-	     else
-	       next_vc = vc + 1;
-	  end
-        else
-          begin
-	     next_hc = hc + 1;
-             next_vc = vc;
-          end
-     end // always @ (*)
+   // next_hc & next_vc
+   always @(*) begin
+      if (hc == hpixels) begin
+	 next_hc = 0;
+	 next_vc = (vc == vlines)? 0 : vc + 1;
+      end
+      else begin
+	 next_hc = hc + 1;
+         next_vc = vc;
+      end
+   end
 
    // syncs & blanks
-   always @(posedge px_clk or posedge clr)
-     begin
-        if (clr)
-          begin
-             hsync <= hsync_off;
-             vsync <= vsync_off;
-             hblank <= 1'b1;
-             vblank <= 1'b1;
-          end
-        else
-          begin
-             // syncs & blanks
-             hsync <= (next_hc >= hbp + hvisible + hfp)? hsync_on : hsync_off;
-             vsync <= (next_vc >= vbp + vvisible + vfp)? vsync_on : vsync_off;
-             hblank <= (next_hc < hbp || next_hc >= hbp + hvisible);
-             vblank <= (next_vc < vbp || next_vc >= vbp + vvisible);
-          end
-     end
- endmodule
+   always @(posedge clk or posedge clr) begin
+      if (clr) begin
+         hsync <= hsync_off;
+         vsync <= vsync_off;
+         hblank <= 1;
+         vblank <= 1;
+      end
+      else begin
+         hsync <= (next_hc >= hbp + hvisible + hfp)? hsync_on : hsync_off;
+         vsync <= (next_vc >= vbp + vvisible + vfp)? vsync_on : vsync_off;
+         hblank <= (next_hc < hbp || next_hc >= hbp + hvisible);
+         vblank <= (next_vc < vbp || next_vc >= vbp + vvisible);
+      end
+   end
+endmodule

@@ -6,8 +6,8 @@ RTL_USB_DIR = tinyfpga_bx_usbserial/usb
 
 MEMS = $(BUFFER_DIR)/empty.hex $(BUFFER_DIR)/pantalla.hex \
 	$(FONT_DIR)/terminus_816_latin1.hex $(FONT_DIR)/terminus_816_bold_latin1.hex
-SRCS := char_buffer.v char_rom.v clock_divider.v command_handler.v cursor_position.v \
-	keyboard.v pll.v vga.v char_generator.v cursor_blinker.v led_counter.v \
+SRCS := char_buffer.v char_rom.v command_handler.v cursor_position.v \
+	keyboard.v pll.v vga.v char_generator.v cursor_blinker.v \
 	sync_generator.v
 USB_SRCS = \
 	$(RTL_USB_DIR)/edge_detect.v \
