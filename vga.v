@@ -61,10 +61,9 @@ module top (
 
    // TODO rewrite these instantiations to use the param names
    pll mypll(clk, fast_clk, locked);
-   sync_generator mysync_generator(fast_clk, clr, hsync, vsync, hblank, vblank);
-
    // TODO pass COLUMNS & ROWS PARAMS
-   char_generator mychar_generator(fast_clk, clr, hblank, vblank, row, col, char_pixel,
+   char_generator mychar_generator(fast_clk, clr, hsync, vsync, hblank, vblank,
+                                   row, col, char_pixel,
                                    new_char_address, new_char, new_char_wen,
                                    new_first_char, new_first_char_wen);
    cursor_blinker mycursor_blinker(fast_clk, clr, vblank, new_cursor_wen, cursor_blink_on);

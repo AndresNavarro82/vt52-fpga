@@ -1,22 +1,23 @@
 /**
- * 80x24 char generator (8x16 char size)
+ * 80x24 char generator (8x16 char size) & sync generator
  * The pixel clock is half the clk input
- * TODO maybe this could use more of the sync generator output
- * instead of counting again here, or even fuse the two modules
  */
 module char_generator
   #(parameter ROWS = 24,
     parameter COLS = 80,
+    // XXX These could probably be calculated from the above
     parameter ROW_BITS = 5,
-    // XXX could be calculated from COLUMNS
     parameter COL_BITS = 7,
     parameter ADDR_BITS = 11,
+    // first address outside the visible area
     parameter PAST_LAST_ROW = ROWS * COLS
     )
-   (input clk, // pixel clock
-    input clr, // async reset
-    input hblank,
-    input vblank,
+   (input clk, 
+    input clr, 
+    output reg hsync,
+    output reg vsync,
+    output reg hblank,
+    output reg vblank,
     output reg [ROW_BITS-1:0] row,
     output reg [COL_BITS-1:0] col,
     output reg pixel_out,
@@ -26,6 +27,35 @@ module char_generator
     input [ADDR_BITS-1:0] buffer_first_char,
     input buffer_first_char_wen
     );
+   // VGA Signal 640x400 @ 70 Hz timing
+   // from http://tinyvga.com/vga-timing/640x400@70Hz
+   // Total size, visible size, front and back porches and sync pulse size
+   // clk is 48Mhz (because USB...), so about twice what we need (around 25Mhz)
+   // Every horizontal value is multiplied by two because we have a clock
+   // that runs at twice the pixel rate
+   localparam hbits = 12;
+   localparam hpixels = 2*800;
+   localparam hbp = 2*48;
+   localparam hvisible = 2*640;
+   localparam hfp = 2*16;
+   localparam hpulse = 2*96;
+   // Added 8 to vbp and vfp to compensate for the missing character row
+   // (25 * 16pixels == 400, we are using 24 rows so we are 16 pixels short)
+   localparam vbits = 12;
+   localparam vlines = 449;
+   localparam vbp = 35 + 8;
+   localparam vvisible = 400 - 16;
+   localparam vfp = 12 + 8;
+   localparam vpulse = 2;
+   // sync polarity
+   localparam hsync_on = 1'b0;
+   localparam vsync_on = 1'b1;
+   localparam hsync_off = ~hsync_on;
+   localparam vsync_off = ~vsync_on;
+   // horizontal & vertical counters
+   reg [hbits-1:0] hc, next_hc;
+   reg [vbits-1:0] vc, next_vc;
+   // character generation
    reg [ROW_BITS-1:0] next_row;
    reg [COL_BITS-1:0] next_col;
    // columns counts two for every real column because the clk is twice the pixel rate
@@ -57,6 +87,53 @@ module char_generator
    wire [11:0] char_address = { char_address_high, rowc };
    char_rom mychar_rom(char_address, clk, rom_char_row);
 
+   reg delayed_pixel;
+
+   //
+   // horizontal & vertical counters
+   //
+   always @(posedge clk or posedge clr) begin
+      if (clr) begin
+         hc <= 0;
+         vc <= 0;
+      end
+      else begin
+         hc <= next_hc;
+         vc <= next_vc;
+      end
+   end
+
+   // next_hc & next_vc
+   always @(*) begin
+      if (hc == hpixels) begin
+         next_hc = 0;
+         next_vc = (vc == vlines)? 0 : vc + 1;
+      end
+      else begin
+         next_hc = hc + 1;
+         next_vc = vc;
+      end
+   end
+
+   // syncs & blanks
+   always @(posedge clk or posedge clr) begin
+      if (clr) begin
+         hsync <= hsync_off;
+         vsync <= vsync_off;
+         hblank <= 1;
+         vblank <= 1;
+      end
+      else begin
+         hsync <= (next_hc >= hbp + hvisible + hfp)? hsync_on : hsync_off;
+         vsync <= (next_vc >= vbp + vvisible + vfp)? vsync_on : vsync_off;
+         hblank <= (next_hc < hbp || next_hc >= hbp + hvisible);
+         vblank <= (next_vc < vbp || next_vc >= vbp + vvisible);
+      end
+   end
+
+   //
+   // character generation
+   //
    always @(posedge clk or posedge clr) begin
       if (clr) begin
          row <= 0;
@@ -148,16 +225,14 @@ module char_generator
    always @(posedge clk or posedge clr) begin
       if (clr) begin
          pixel_out <= 0;
+         delayed_pixel <= 0;
       end
       else begin
-         // XXX I'm not exactly sure why, but without this if, wide chars in the first column
-         // (like w) get an extra pixel on the previous column
-         if (hblank || vblank)
-           pixel_out <= 0;
-         else
-           // I think the pixel appears a clk late, but it shouldn't be a problem
-           // select pixel according to column
-           pixel_out <= next_char_row[col_index];
+         // delayed pixel is to compensate for the double rate clock
+         // otherwise the pixel would be delayed half a pixel clock
+         // select pixel according to column
+         delayed_pixel <= next_char_row[col_index];
+         pixel_out <= delayed_pixel;
       end
    end
 endmodule

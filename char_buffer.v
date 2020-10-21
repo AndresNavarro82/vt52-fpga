@@ -17,8 +17,8 @@ module char_buffer
 
    initial
      begin
-//	$readmemh("pantalla/pantalla.hex", mem) ;
-	$readmemh("pantalla/empty.hex", mem) ;
+	$readmemh("pantalla/pantalla.hex", mem) ;
+//	$readmemh("pantalla/empty.hex", mem) ;
      end
 
    always @(posedge clk)
