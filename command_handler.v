@@ -13,14 +13,14 @@ module command_handler
     input [7:0] data,
     input valid,
     output ready,
+    output [ADDR_BITS-1:0] new_first_char,
+    output new_first_char_wen,
     output [7:0] new_char,
     output [ADDR_BITS-1:0] new_char_address,
     output new_char_wen,
     output [COL_BITS-1:0] new_cursor_x,
     output [ROW_BITS-1:0] new_cursor_y,
-    output new_cursor_wen,
-    output [ADDR_BITS-1:0] new_first_char,
-    output new_first_char_wen
+    output new_cursor_wen
     );
 
    // XXX maybe ready should be registered? reg ready_q;

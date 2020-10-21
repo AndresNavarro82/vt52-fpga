@@ -12,20 +12,27 @@ module char_generator
     // first address outside the visible area
     parameter PAST_LAST_ROW = ROWS * COLS
     )
-   (input clk, 
-    input clr, 
+   (input clk,
+    input clr,
+    // video output
     output reg hsync,
     output reg vsync,
+    output reg video,
+    // video output extra info
     output reg hblank,
     output reg vblank,
-    output reg [ROW_BITS-1:0] row,
-    output reg [COL_BITS-1:0] col,
-    output reg pixel_out,
+    output reg led,
+    // scrolling
+    input [ADDR_BITS-1:0] buffer_first_char,
+    input buffer_first_char_wen,
+    // char buffer write
     input [ADDR_BITS-1:0] buffer_waddr,
     input [7:0] buffer_din,
     input buffer_wen,
-    input [ADDR_BITS-1:0] buffer_first_char,
-    input buffer_first_char_wen
+    // cursor
+    input [COL_BITS-1:0] new_cursor_x,
+    input [ROW_BITS-1:0] new_cursor_y,
+    input new_cursor_wen
     );
    // VGA Signal 640x400 @ 70 Hz timing
    // from http://tinyvga.com/vga-timing/640x400@70Hz
@@ -52,27 +59,38 @@ module char_generator
    localparam vsync_on = 1'b1;
    localparam hsync_off = ~hsync_on;
    localparam vsync_off = ~vsync_on;
+   // video polarity
+   localparam video_on = 1'b1;
+   localparam video_off = ~video_on;
+
+   // These are to combine the chars & the cursor for video output
+   reg is_under_cursor;
+   reg cursor_pixel;
+   reg [2:0] col_index;
+   reg char_pixel;
+   reg combined_pixel;
+
    // horizontal & vertical counters
    reg [hbits-1:0] hc, next_hc;
    reg [vbits-1:0] vc, next_vc;
    // character generation
-   reg [ROW_BITS-1:0] next_row;
-   reg [COL_BITS-1:0] next_col;
+   reg [ROW_BITS-1:0] row, next_row;
+   reg [COL_BITS-1:0] col, next_col;
    // columns counts two for every real column because the clk is twice the pixel rate
    reg [3:0] colc, next_colc;
    reg [3:0] rowc, next_rowc;
    // here we make the real column index, accounting for the double rate and
    // the fact that the font has the order of the pixels mirrored
    wire [2:0] rcolc = colc[3:1];
-   wire [2:0] col_index = 7 - rcolc;
 
    reg [ADDR_BITS-1:0] char, next_char;
    reg [7:0] char_row, next_char_row;
    wire [7:0] rom_char_row;
-
+   // we could eliminate this now that we have the sync generation here
    reg hsync_flag, next_hsync_flag;
 
    reg [ADDR_BITS-1:0] first_char;
+   reg delayed_pixel;
 
    // XXX for now we are constantly reading from both
    // rom & ram, we clock the row on the last column of the char
@@ -83,11 +101,20 @@ module char_generator
    // we can get away with the addition here because we have a power of 2
    // number of rows (16 in this case)
    wire [7:0] char_address_high;
-   char_buffer mychar_buffer(buffer_din, buffer_waddr, buffer_wen, clk, next_char, char_address_high, buffer_ren);
+   char_buffer mychar_buffer(buffer_din, buffer_waddr, buffer_wen, clk,
+                             next_char, char_address_high, buffer_ren);
    wire [11:0] char_address = { char_address_high, rowc };
    char_rom mychar_rom(char_address, clk, rom_char_row);
 
-   reg delayed_pixel;
+   //
+   // cursor
+   //
+   wire cursor_blink_on;
+   wire [ROW_BITS-1:0] cursor_y;
+   wire [COL_BITS-1:0] cursor_x;
+   cursor_blinker mycursor_blinker(clk, clr, vblank, new_cursor_wen, cursor_blink_on);
+   cursor_position #(.SIZE(7)) mycursor_x (clk, clr, new_cursor_x, new_cursor_wen, cursor_x);
+   cursor_position #(.SIZE(5)) mycursor_y (clk, clr, new_cursor_y, new_cursor_wen, cursor_y);
 
    //
    // horizontal & vertical counters
@@ -222,17 +249,35 @@ module char_generator
       end // else: !if(hblank)
    end // always @ (posedge clk or posedge clr)
 
+   //
+   // pixel out (char & cursor combination) & led (cursor blink)
+   //
+   always @(*) begin
+      // cursor pixel: invert video when we are under the cursor (if it's blinking)
+      is_under_cursor = (cursor_x == col) & (cursor_y == row);
+      cursor_pixel = is_under_cursor & cursor_blink_on;
+      // char pixel: read from the appropiate char, row & col on the font ROM
+      col_index = 7 - rcolc;
+      char_pixel = next_char_row[col_index];
+      // combine, but only emit video on non-blanking periods
+      combined_pixel = (hblank || vblank)?
+                       video_off :
+                       char_pixel ^ cursor_pixel;
+   end
+
    always @(posedge clk or posedge clr) begin
       if (clr) begin
-         pixel_out <= 0;
-         delayed_pixel <= 0;
+         delayed_pixel <= video_off;
+         video <= video_off;
+         led <= 0;
       end
       else begin
          // delayed pixel is to compensate for the double rate clock
          // otherwise the pixel would be delayed half a pixel clock
          // select pixel according to column
-         delayed_pixel <= next_char_row[col_index];
-         pixel_out <= delayed_pixel;
+         delayed_pixel <= combined_pixel;
+         video <= delayed_pixel;
+         led <= cursor_blink_on;
       end
    end
 endmodule
