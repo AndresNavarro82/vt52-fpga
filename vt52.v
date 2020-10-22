@@ -54,7 +54,8 @@ module top (input       clk,
    // TODO rewrite these instantiations to use the param names
    pll mypll(clk, fast_clk, locked);
    keyboard mykeyboard (fast_clk, reset, ps2_data, ps2_clk,
-                        uart_in_data, uart_in_valid, uart_in_ready);
+                        uart_in_data, uart_in_valid, uart_in_ready
+                        );
    // TODO pass COLUMNS & ROWS PARAMS
    char_generator mychar_generator(fast_clk, reset,
                                    hsync, vsync, video, hblank, vblank, led,
