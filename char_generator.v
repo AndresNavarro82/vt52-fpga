@@ -73,6 +73,8 @@ module char_generator
    // horizontal & vertical counters
    reg [hbits-1:0] hc, next_hc;
    reg [vbits-1:0] vc, next_vc;
+   // syncs and blanks
+   reg next_hblank, next_vblank, next_hsync, next_vsync;
    // character generation
    reg [ROW_BITS-1:0] row, next_row;
    reg [COL_BITS-1:0] col, next_col;
@@ -86,11 +88,8 @@ module char_generator
    reg [ADDR_BITS-1:0] char, next_char;
    reg [7:0] char_row, next_char_row;
    wire [7:0] rom_char_row;
-   // we could eliminate this now that we have the sync generation here
-   reg hsync_flag, next_hsync_flag;
 
    reg [ADDR_BITS-1:0] first_char;
-   reg delayed_pixel;
 
    // XXX for now we are constantly reading from both
    // rom & ram, we clock the row on the last column of the char
@@ -117,20 +116,27 @@ module char_generator
    cursor_position #(.SIZE(5)) mycursor_y (clk, clr, new_cursor_y, new_cursor_wen, cursor_y);
 
    //
-   // horizontal & vertical counters
+   // horizontal & vertical counters, syncs and blanks
    //
    always @(posedge clk or posedge clr) begin
       if (clr) begin
          hc <= 0;
          vc <= 0;
+         hsync <= hsync_off;
+         vsync <= vsync_off;
+         hblank <= 1;
+         vblank <= 1;
       end
       else begin
          hc <= next_hc;
          vc <= next_vc;
+         hsync <= next_hsync;
+         vsync <= next_vsync;
+         hblank <= next_hblank;
+         vblank <= next_vblank;
       end
    end
 
-   // next_hc & next_vc
    always @(*) begin
       if (hc == hpixels) begin
          next_hc = 0;
@@ -140,22 +146,10 @@ module char_generator
          next_hc = hc + 1;
          next_vc = vc;
       end
-   end
-
-   // syncs & blanks
-   always @(posedge clk or posedge clr) begin
-      if (clr) begin
-         hsync <= hsync_off;
-         vsync <= vsync_off;
-         hblank <= 1;
-         vblank <= 1;
-      end
-      else begin
-         hsync <= (next_hc >= hbp + hvisible + hfp)? hsync_on : hsync_off;
-         vsync <= (next_vc >= vbp + vvisible + vfp)? vsync_on : vsync_off;
-         hblank <= (next_hc < hbp || next_hc >= hbp + hvisible);
-         vblank <= (next_vc < vbp || next_vc >= vbp + vvisible);
-      end
+      next_hsync = (next_hc >= hbp + hvisible + hfp)? hsync_on : hsync_off;
+      next_vsync = (next_vc >= vbp + vvisible + vfp)? vsync_on : vsync_off;
+      next_hblank = (next_hc < hbp || next_hc >= hbp + hvisible);
+      next_vblank = (next_vc < vbp || next_vc >= vbp + vvisible);
    end
 
    //
@@ -168,7 +162,6 @@ module char_generator
          rowc <= 0;
          colc <= 0;
          char <= 0;
-         hsync_flag <= 0;
          char_row <= 0;
          first_char <= 0;
       end
@@ -178,7 +171,6 @@ module char_generator
          rowc <= next_rowc;
          colc <= next_colc;
          char <= next_char;
-         hsync_flag <= next_hsync_flag;
          char_row <= next_char_row;
          if (buffer_first_char_wen) begin
             first_char <= buffer_first_char;
@@ -193,21 +185,21 @@ module char_generator
          next_col = 0;
          next_colc = 0;
          next_char = first_char;
-         next_hsync_flag = 0;
          next_char_row = rom_char_row;
       end
-      else if (hblank) begin
+      // we need next_hblank here because we must detect the edge
+      // in hblank & prepare for the row
+      else if (next_hblank) begin
          // some nice defaults
          next_row = row;
          next_rowc = rowc;
          next_col = 0;
          next_colc = 0;
          next_char = char;
-         next_hsync_flag = 0;
          next_char_row = rom_char_row;
 
-         // only do this once per line
-         if (hsync_flag == 1) begin
+         // only do this once per line (positive hblank edge)
+         if (hblank == 0) begin
             if (rowc == 15) begin
                // we are moving to the next row, so char
                // is already set at the correct value, unless
@@ -223,9 +215,9 @@ module char_generator
                // go back to the first char in this line
                next_char = char - COLS;
                next_rowc = rowc + 1;
-            end // else: !if(rowc == 15)
-         end // if (hsync_flag == 1)
-      end // if (hblank)
+            end
+         end
+      end
       else begin
          // some nice defaults
          next_row = row;
@@ -233,7 +225,6 @@ module char_generator
          next_col = col;
          next_colc = colc+1;
          next_char = char;
-         next_hsync_flag = 1;
          next_char_row = char_row;
 
          if (colc == 0) begin
@@ -246,12 +237,23 @@ module char_generator
             next_colc = 0;
             next_char_row = rom_char_row;
          end
-      end // else: !if(hblank)
+      end // else: !if(next_hblank)
    end // always @ (posedge clk or posedge clr)
 
    //
    // pixel out (char & cursor combination) & led (cursor blink)
    //
+   always @(posedge clk or posedge clr) begin
+      if (clr) begin
+         video <= video_off;
+         led <= 0;
+      end
+      else begin
+         video <= combined_pixel;
+         led <= cursor_blink_on;
+      end
+   end
+
    always @(*) begin
       // cursor pixel: invert video when we are under the cursor (if it's blinking)
       is_under_cursor = (cursor_x == col) & (cursor_y == row);
@@ -260,24 +262,8 @@ module char_generator
       col_index = 7 - rcolc;
       char_pixel = next_char_row[col_index];
       // combine, but only emit video on non-blanking periods
-      combined_pixel = (hblank || vblank)?
+      combined_pixel = (next_hblank || next_vblank)?
                        video_off :
                        char_pixel ^ cursor_pixel;
-   end
-
-   always @(posedge clk or posedge clr) begin
-      if (clr) begin
-         delayed_pixel <= video_off;
-         video <= video_off;
-         led <= 0;
-      end
-      else begin
-         // delayed pixel is to compensate for the double rate clock
-         // otherwise the pixel would be delayed half a pixel clock
-         // select pixel according to column
-         delayed_pixel <= combined_pixel;
-         video <= delayed_pixel;
-         led <= cursor_blink_on;
-      end
    end
 endmodule
