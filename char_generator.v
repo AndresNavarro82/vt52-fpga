@@ -13,7 +13,7 @@ module char_generator
     parameter PAST_LAST_ROW = ROWS * COLS
     )
    (input clk,
-    input clr,
+    input reset,
     // video output
     output reg hsync,
     output reg vsync,
@@ -111,15 +111,15 @@ module char_generator
    wire cursor_blink_on;
    wire [ROW_BITS-1:0] cursor_y;
    wire [COL_BITS-1:0] cursor_x;
-   cursor_blinker mycursor_blinker(clk, clr, vblank, new_cursor_wen, cursor_blink_on);
-   cursor_position #(.SIZE(7)) mycursor_x (clk, clr, new_cursor_x, new_cursor_wen, cursor_x);
-   cursor_position #(.SIZE(5)) mycursor_y (clk, clr, new_cursor_y, new_cursor_wen, cursor_y);
+   cursor_blinker mycursor_blinker(clk, reset, vblank, new_cursor_wen, cursor_blink_on);
+   cursor_position #(.SIZE(7)) mycursor_x (clk, reset, new_cursor_x, new_cursor_wen, cursor_x);
+   cursor_position #(.SIZE(5)) mycursor_y (clk, reset, new_cursor_y, new_cursor_wen, cursor_y);
 
    //
    // horizontal & vertical counters, syncs and blanks
    //
-   always @(posedge clk or posedge clr) begin
-      if (clr) begin
+   always @(posedge clk) begin
+      if (reset) begin
          hc <= 0;
          vc <= 0;
          hsync <= hsync_off;
@@ -155,8 +155,8 @@ module char_generator
    //
    // character generation
    //
-   always @(posedge clk or posedge clr) begin
-      if (clr) begin
+   always @(posedge clk) begin
+      if (reset) begin
          row <= 0;
          col <= 0;
          rowc <= 0;
@@ -175,8 +175,8 @@ module char_generator
          if (buffer_first_char_wen) begin
             first_char <= buffer_first_char;
          end
-      end // else: !if(clr == 1)
-   end // always @ (posedge clk or posedge clr)
+      end
+   end
 
    always @(*) begin
       if (vblank) begin
@@ -238,13 +238,13 @@ module char_generator
             next_char_row = rom_char_row;
          end
       end // else: !if(next_hblank)
-   end // always @ (posedge clk or posedge clr)
+   end // always @ (*)
 
    //
    // pixel out (char & cursor combination) & led (cursor blink)
    //
-   always @(posedge clk or posedge clr) begin
-      if (clr) begin
+   always @(posedge clk) begin
+      if (reset) begin
          video <= video_off;
          led <= 0;
       end

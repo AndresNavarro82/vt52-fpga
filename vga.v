@@ -1,6 +1,4 @@
-module top (
-            input       clk, // 16Mhz clock
-            input       clr, // asynchronous reset
+module top (input       clk,
             output wire hsync,
             output wire vsync,
             output wire video,
@@ -9,7 +7,7 @@ module top (
             input       ps2_clk,
             inout       pin_usb_p,
             inout       pin_usb_n,
-            output      pin_pu
+            output wire pin_pu
             );
    localparam ROW_BITS = 5;
    localparam COL_BITS = 7;
@@ -18,7 +16,6 @@ module top (
    // pll outputs
    wire locked;
    wire fast_clk;
-
    // char generator outputs
    wire vblank, hblank;
    wire [ROW_BITS-1:0] row;
@@ -56,10 +53,10 @@ module top (
 
    // TODO rewrite these instantiations to use the param names
    pll mypll(clk, fast_clk, locked);
-   keyboard mykeyboard (fast_clk, clr, ps2_data, ps2_clk,
+   keyboard mykeyboard (fast_clk, reset, ps2_data, ps2_clk,
                         uart_in_data, uart_in_valid, uart_in_ready);
    // TODO pass COLUMNS & ROWS PARAMS
-   char_generator mychar_generator(fast_clk, clr,
+   char_generator mychar_generator(fast_clk, reset,
                                    hsync, vsync, video, hblank, vblank, led,
                                    new_first_char, new_first_char_wen,
                                    new_char_address, new_char, new_char_wen,

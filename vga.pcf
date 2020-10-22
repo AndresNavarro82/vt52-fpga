@@ -5,9 +5,6 @@
 # 16Mhz clock
 set_io --warn-no-port clk B2
 
-# async clear
-set_io --warn-no-port clr H9
-
 # vga outputs
 set_io --warn-no-port vsync G2
 set_io --warn-no-port hsync E1

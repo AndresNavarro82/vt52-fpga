@@ -6,21 +6,20 @@
  * The license is included as ofl.txt, and is also available with a FAQ
  * at http://scripts.sil.org/OFL
  */
-module char_rom (addr, clk, dout);
-   input [11:0] addr;
-   input        clk;
-   output [7:0] dout;
+module char_rom
+  (input [11:0] addr,
+   input        clk,
+   output [7:0] dout
+   );
 
    reg [7:0]    dout;
    reg [7:0]    mem [4095:0];
 
-   initial
-     begin
-        $readmemh("font/terminus_816_latin1.hex", mem) ;
-     end
+   initial begin
+      $readmemh("font/terminus_816_latin1.hex", mem) ;
+   end
 
-   always @(posedge clk)
-     begin
-	dout = mem[addr];
-     end
+   always @(posedge clk) begin
+      dout = mem[addr];
+   end
 endmodule

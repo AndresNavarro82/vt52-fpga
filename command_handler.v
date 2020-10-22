@@ -9,7 +9,7 @@ module command_handler
     parameter ADDR_BITS = 11)
    (
     input clk,
-    input clr,
+    input reset,
     input [7:0] data,
     input valid,
     output ready,
@@ -70,8 +70,8 @@ module command_handler
    assign new_first_char = new_first_char_q;
    assign new_first_char_wen = new_first_char_wen_q;
 
-   always @(posedge clk or posedge clr) begin
-      if (clr) begin
+   always @(posedge clk) begin
+      if (reset) begin
          new_char_q <= 0;
          new_char_address_q <= 0;
          new_char_wen_q <= 0;
@@ -373,6 +373,6 @@ module command_handler
               end // if (state == state_col)
             endcase // case (state)
          end // else: !if(ready && valid)
-      end // else: !if(clr)
-   end // always @ (posedge clk or posedge clr)
+      end // else: !if(reset)
+   end // always @ (posedge clk)
 endmodule

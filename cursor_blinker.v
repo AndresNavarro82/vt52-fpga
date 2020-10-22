@@ -2,22 +2,21 @@
  * Cursor blinker (uses vblank as tick, blinks about once a second)
  */
 module cursor_blinker
-  (
-   input clk,
-   input clr,
-   input tick,
+  (input clk,
    input reset,
+   input tick,
+   input reset_count,
    output wire blink_on
    );
    localparam BITS = 6;
    reg has_incremented;
    reg [BITS-1:0] counter;
-   always @(posedge clk or posedge clr) begin
-      if (clr) begin
+   always @(posedge clk) begin
+      if (reset) begin
          counter <= 0;
          has_incremented <= 0;
       end
-      else if (reset) begin
+      else if (reset_count) begin
          counter <= 0;
          has_incremented <= tick;
       end
