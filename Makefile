@@ -6,8 +6,8 @@ RTL_USB_DIR = tinyfpga_bx_usbserial/usb
 
 MEMS = $(BUFFER_DIR)/empty.hex $(BUFFER_DIR)/pantalla.hex \
 	$(FONT_DIR)/terminus_816_latin1.hex $(FONT_DIR)/terminus_816_bold_latin1.hex
-SRCS := char_buffer.v char_rom.v command_handler.v cursor_position.v \
-	keyboard.v pll.v vt52.v char_generator.v cursor_blinker.v
+SRCS := char_buffer.v char_rom.v command_handler.v cursor.v cursor_position.v \
+	cursor_blinker.v keyboard.v pll.v video_generator.v vt52.v
 USB_SRCS = \
 	$(RTL_USB_DIR)/edge_detect.v \
 	$(RTL_USB_DIR)/serial.v \
@@ -46,7 +46,8 @@ $(NAME).bin: $(NAME).asc
 	icepack $< $@
 
 $(NAME).asc: $(NAME).json $(PIN_DEF)
-	nextpnr-ice40 --$(DEVICE) --package $(PACKAGE) --freq $(CLK_MHZ) --json $< --pcf $(NAME).pcf --asc $@
+	nextpnr-ice40 --$(DEVICE) --package $(PACKAGE) --freq 45 --json $< --pcf $(NAME).pcf --asc $@
+#	nextpnr-ice40 --$(DEVICE) --package $(PACKAGE) --freq $(CLK_MHZ) --json $< --pcf $(NAME).pcf --asc $@
 
 $(NAME).json: $(SRCS) $(USB_SRCS) $(MEMS)
 	yosys -p 'synth_ice40 -top top -json $@' $(SRCS) $(USB_SRCS)

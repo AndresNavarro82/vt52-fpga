@@ -21,7 +21,10 @@ module char_generator
     // video output extra info
     output reg hblank,
     output reg vblank,
-    output reg led,
+    // cursor
+    input [COL_BITS-1:0] cursor_x,
+    input [ROW_BITS-1:0] cursor_y,
+    input cursor_blink_on,
     // scrolling
     input [ADDR_BITS-1:0] buffer_first_char,
     input buffer_first_char_wen,
@@ -29,10 +32,6 @@ module char_generator
     input [ADDR_BITS-1:0] buffer_waddr,
     input [7:0] buffer_din,
     input buffer_wen,
-    // cursor
-    input [COL_BITS-1:0] new_cursor_x,
-    input [ROW_BITS-1:0] new_cursor_y,
-    input new_cursor_wen
     );
    // VGA Signal 640x400 @ 70 Hz timing
    // from http://tinyvga.com/vga-timing/640x400@70Hz
@@ -104,16 +103,6 @@ module char_generator
                              next_char, char_address_high, buffer_ren);
    wire [11:0] char_address = { char_address_high, rowc };
    char_rom mychar_rom(char_address, clk, rom_char_row);
-
-   //
-   // cursor
-   //
-   wire cursor_blink_on;
-   wire [ROW_BITS-1:0] cursor_y;
-   wire [COL_BITS-1:0] cursor_x;
-   cursor_blinker mycursor_blinker(clk, reset, vblank, new_cursor_wen, cursor_blink_on);
-   cursor_position #(.SIZE(7)) mycursor_x (clk, reset, new_cursor_x, new_cursor_wen, cursor_x);
-   cursor_position #(.SIZE(5)) mycursor_y (clk, reset, new_cursor_y, new_cursor_wen, cursor_y);
 
    //
    // horizontal & vertical counters, syncs and blanks
@@ -241,17 +230,11 @@ module char_generator
    end // always @ (*)
 
    //
-   // pixel out (char & cursor combination) & led (cursor blink)
+   // pixel out (char & cursor combination) 
    //
    always @(posedge clk) begin
-      if (reset) begin
-         video <= video_off;
-         led <= 0;
-      end
-      else begin
-         video <= combined_pixel;
-         led <= cursor_blink_on;
-      end
+      if (reset) video <= video_off;
+      else video <= combined_pixel;
    end
 
    always @(*) begin
