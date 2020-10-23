@@ -86,13 +86,13 @@ module video_generator
    wire [2:0] rcolc = colc[3:1];
    // maintain the next address to the char buffer
    reg [ADDR_BITS-1:0] char, next_char;
-   // maintain the row of pixels coming from the next char to draw
-   reg [7:0] char_row, next_char_row;
 
-   // The address of the char row is formed with the char and the row offset
-   // we can get away with the addition here because we have a power of 2
-   // number of rows (16 in this case)
+   // we must use next_char instead of char because we need it ready for
+   // the next clock cycle
    assign char_buffer_address = next_char;
+   // The address of the char row in rom is formed with the char and the row offset
+   // we can get away with the addition here because the number of rows
+   // in this font is a power of 2 (16 in this case)
    assign char_rom_address = { char_buffer_data, rowc };
 
    //
@@ -142,7 +142,6 @@ module video_generator
          rowc <= 0;
          colc <= 0;
          char <= 0;
-         char_row <= 0;
       end
       else begin
          row <= next_row;
@@ -150,7 +149,6 @@ module video_generator
          rowc <= next_rowc;
          colc <= next_colc;
          char <= next_char;
-         char_row <= next_char_row;
       end
    end
 
@@ -161,7 +159,6 @@ module video_generator
          next_col = 0;
          next_colc = 0;
          next_char = first_char;
-         next_char_row = char_rom_data;
       end
       // we need next_hblank here because we must detect the edge
       // in hblank & prepare for the row
@@ -172,7 +169,6 @@ module video_generator
          next_col = 0;
          next_colc = 0;
          next_char = char;
-         next_char_row = char_rom_data;
 
          // only do this once per line (positive hblank edge)
          if (hblank == 0) begin
@@ -201,17 +197,16 @@ module video_generator
          next_col = col;
          next_colc = colc+1;
          next_char = char;
-         next_char_row = char_row;
 
-         if (colc == 0) begin
-            // read the next char from mem as soon as possible
+         if (colc == 14) begin
+            // prepare to read next char (it takes two cycles,
+            // one to read from ram & one to read from rom)
             next_char = char+1;
          end
          else if (colc == 15) begin
             // move to the next char
             next_col = col+1;
             next_colc = 0;
-            next_char_row = char_rom_data;
          end
       end // else: !if(next_hblank)
    end // always @ (*)
@@ -230,7 +225,7 @@ module video_generator
       cursor_pixel = is_under_cursor & cursor_blink_on;
       // char pixel: read from the appropiate char, row & col on the font ROM
       col_index = 7 - rcolc;
-      char_pixel = next_char_row[col_index];
+      char_pixel = char_rom_data[col_index];
       // combine, but only emit video on non-blanking periods
       combined_pixel = (next_hblank || next_vblank)?
                        video_off :
