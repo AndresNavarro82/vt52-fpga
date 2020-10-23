@@ -7,7 +7,6 @@ module cursor
    (input clk,
     input reset,
     input vblank,
-    output reg led,
     output wire [COL_BITS-1:0] cursor_x,
     output wire [ROW_BITS-1:0] cursor_y,
     output wire cursor_blink_on,
@@ -17,11 +16,6 @@ module cursor
     );
 
    cursor_blinker mycursor_blinker(clk, reset, vblank, new_cursor_wen, cursor_blink_on);
-   cursor_position #(.SIZE(COL_BITS)) mycursor_x (clk, reset, new_cursor_x, new_cursor_wen, cursor_x);
-   cursor_position #(.SIZE(ROW_BITS)) mycursor_y (clk, reset, new_cursor_y, new_cursor_wen, cursor_y);
-
-   always @(posedge clk) begin
-      if (reset) led <= 0;
-      else led <= cursor_blink_on;
-   end
+   simple_register #(.SIZE(COL_BITS)) mycursor_x (clk, reset, new_cursor_x, new_cursor_wen, cursor_x);
+   simple_register #(.SIZE(ROW_BITS)) mycursor_y (clk, reset, new_cursor_y, new_cursor_wen, cursor_y);
 endmodule

@@ -2,7 +2,7 @@
  * 80x24 char generator (8x16 char size) & sync generator
  * The pixel clock is half the clk input
  */
-module char_generator
+module video_generator
   #(parameter ROWS = 24,
     parameter COLS = 80,
     // XXX These could probably be calculated from the above
@@ -26,8 +26,7 @@ module char_generator
     input [ROW_BITS-1:0] cursor_y,
     input cursor_blink_on,
     // scrolling
-    input [ADDR_BITS-1:0] buffer_first_char,
-    input buffer_first_char_wen,
+    input [ADDR_BITS-1:0] first_char,
     // char buffer write
     input [ADDR_BITS-1:0] buffer_waddr,
     input [7:0] buffer_din,
@@ -87,8 +86,6 @@ module char_generator
    reg [ADDR_BITS-1:0] char, next_char;
    reg [7:0] char_row, next_char_row;
    wire [7:0] rom_char_row;
-
-   reg [ADDR_BITS-1:0] first_char;
 
    // XXX for now we are constantly reading from both
    // rom & ram, we clock the row on the last column of the char
@@ -152,7 +149,6 @@ module char_generator
          colc <= 0;
          char <= 0;
          char_row <= 0;
-         first_char <= 0;
       end
       else begin
          row <= next_row;
@@ -161,9 +157,6 @@ module char_generator
          colc <= next_colc;
          char <= next_char;
          char_row <= next_char_row;
-         if (buffer_first_char_wen) begin
-            first_char <= buffer_first_char;
-         end
       end
    end
 
@@ -230,7 +223,7 @@ module char_generator
    end // always @ (*)
 
    //
-   // pixel out (char & cursor combination) 
+   // pixel out (char & cursor combination)
    //
    always @(posedge clk) begin
       if (reset) video <= video_off;

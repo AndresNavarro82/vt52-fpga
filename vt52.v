@@ -16,29 +16,25 @@ module top (input       clk,
    // pll outputs
    wire locked;
    wire fast_clk;
-   // char generator outputs
+   // video generator
    wire vblank, hblank;
-   wire [ROW_BITS-1:0] row;
-   wire [COL_BITS-1:0] col;
-   wire char_pixel;
    // char buffer write char
    wire [7:0] new_char;
    wire [ADDR_BITS-1:0] new_char_address;
    wire new_char_wen;
-   // char buffer scroll
+   // scroll
    wire [ADDR_BITS-1:0] new_first_char;
    wire new_first_char_wen;
-   // char buffer cursor position write
+   wire [ADDR_BITS-1:0] first_char;
+   // cursor
    wire [ROW_BITS-1:0]  new_cursor_y;
    wire [COL_BITS-1:0]  new_cursor_x;
    wire new_cursor_wen;
-   // cursor read
    wire cursor_blink_on;
    wire [ROW_BITS-1:0] cursor_y;
    wire [COL_BITS-1:0] cursor_x;
 
    // USB
-   // XXX/TODO use this for for all clears???
    // Generate reset signal
    reg [5:0] reset_cnt = 0;
    wire reset = ~reset_cnt[5];
@@ -57,27 +53,27 @@ module top (input       clk,
 
    // TODO rewrite these instantiations to use the param names
    pll mypll(clk, fast_clk, locked);
-   keyboard mykeyboard (fast_clk, reset, ps2_data, ps2_clk,
-                        uart_in_data, uart_in_valid, uart_in_ready
-                        );
-   cursor mycursor (fast_clk, reset, vblank, led, cursor_x, cursor_y, cursor_blink_on,
-                    new_cursor_x, new_cursor_y, new_cursor_wen
-                    );
+   keyboard mykeyboard(fast_clk, reset, ps2_data, ps2_clk,
+                       uart_in_data, uart_in_valid, uart_in_ready
+                       );
+   cursor mycursor(fast_clk, reset, vblank, cursor_x, cursor_y, cursor_blink_on,
+                   new_cursor_x, new_cursor_y, new_cursor_wen
+                   );
+   simple_register #(.SIZE(ADDR_BITS)) myscroll_register(fast_clk, reset, new_first_char, new_first_char_wen, first_char);
    // TODO pass COLUMNS & ROWS PARAMS
-   char_generator mychar_generator(fast_clk, reset,
-                                   hsync, vsync, video, hblank, vblank,
-                                   cursor_x, cursor_y, cursor_blink_on,
-                                   new_first_char, new_first_char_wen,
-                                   new_char_address, new_char, new_char_wen,
-                                   );
+   video_generator myvideo_generator(fast_clk, reset,
+                                     hsync, vsync, video, hblank, vblank,
+                                     cursor_x, cursor_y, cursor_blink_on,
+                                     first_char,
+                                     new_char_address, new_char, new_char_wen,
+                                     );
    // usb uart - this instantiates the entire USB device.
-   usb_uart uart (
-                  .clk_48mhz  (fast_clk),
+   usb_uart uart (.clk_48mhz  (fast_clk),
                   .reset      (reset),
                   // pins
                   .pin_usb_p( pin_usb_p ),
                   .pin_usb_n( pin_usb_n ),
-                  // uart pipeline in (from keyboard)
+                  // uart pipeline in (keyboard->process)
                   .uart_in_data( uart_in_data ),
                   .uart_in_valid( uart_in_valid ),
                   .uart_in_ready( uart_in_ready ),
@@ -95,4 +91,6 @@ module top (input       clk,
 
    // USB host detect
    assign pin_pu = 1'b1;
+   // led follows the cursor blink
+   assign led = cursor_blink_on;
  endmodule
