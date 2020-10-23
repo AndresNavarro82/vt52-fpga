@@ -42,15 +42,15 @@ pll.v:
 prog: $(NAME).bin
 	tinyprog -p $<
 
-$(NAME).bin: $(NAME).asc 
+$(NAME).bin: $(NAME).asc
 	icepack $< $@
 
 $(NAME).asc: $(NAME).json $(PIN_DEF)
-	nextpnr-ice40 --$(DEVICE) --package $(PACKAGE) --freq $(CLK_MHZ) --json $< --pcf $(NAME).pcf --asc $@
+#	nextpnr-ice40 --$(DEVICE) --package $(PACKAGE) --freq $(CLK_MHZ) --json $< --pcf $(NAME).pcf --asc $@
+	nextpnr-ice40 --$(DEVICE) --package $(PACKAGE) --freq 45 --json $< --pcf $(NAME).pcf --asc $@
 
 $(NAME).json: $(SRCS) $(USB_SRCS) $(MEMS)
 	yosys -p 'synth_ice40 -top top -json $@' $(SRCS) $(USB_SRCS)
 
 clean:
 	rm -f $(NAME).bin $(NAME).asc $(NAME).json pll.v
-

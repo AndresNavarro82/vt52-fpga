@@ -15,7 +15,9 @@ module cursor
     input new_cursor_wen
     );
 
-   cursor_blinker mycursor_blinker(clk, reset, vblank, new_cursor_wen, cursor_blink_on);
-   simple_register #(.SIZE(COL_BITS)) mycursor_x (clk, reset, new_cursor_x, new_cursor_wen, cursor_x);
-   simple_register #(.SIZE(ROW_BITS)) mycursor_y (clk, reset, new_cursor_y, new_cursor_wen, cursor_y);
+   cursor_blinker cursor_blinker(clk, reset, vblank, new_cursor_wen, cursor_blink_on);
+   simple_register #(.SIZE(COL_BITS)) cursor_x_reg(clk, reset, new_cursor_x,
+                                                   new_cursor_wen, cursor_x);
+   simple_register #(.SIZE(ROW_BITS)) cursor_y_reg(clk, reset, new_cursor_y,
+                                                   new_cursor_wen, cursor_y);
 endmodule

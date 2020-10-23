@@ -27,10 +27,12 @@ module video_generator
     input cursor_blink_on,
     // scrolling
     input [ADDR_BITS-1:0] first_char,
-    // char buffer write
-    input [ADDR_BITS-1:0] buffer_waddr,
-    input [7:0] buffer_din,
-    input buffer_wen,
+    // char buffer
+    output wire [ADDR_BITS-1:0] char_buffer_address,
+    input [7:0] char_buffer_data,
+    // char rom
+    output wire [11:0] char_rom_address,
+    input [7:0] char_rom_data
     );
    // VGA Signal 640x400 @ 70 Hz timing
    // from http://tinyvga.com/vga-timing/640x400@70Hz
@@ -82,24 +84,16 @@ module video_generator
    // here we make the real column index, accounting for the double rate and
    // the fact that the font has the order of the pixels mirrored
    wire [2:0] rcolc = colc[3:1];
-
+   // maintain the next address to the char buffer
    reg [ADDR_BITS-1:0] char, next_char;
+   // maintain the row of pixels coming from the next char to draw
    reg [7:0] char_row, next_char_row;
-   wire [7:0] rom_char_row;
-
-   // XXX for now we are constantly reading from both
-   // rom & ram, we clock the row on the last column of the char
-   // (or hblank)
-   wire       buffer_ren = 1'b1;
 
    // The address of the char row is formed with the char and the row offset
    // we can get away with the addition here because we have a power of 2
    // number of rows (16 in this case)
-   wire [7:0] char_address_high;
-   char_buffer mychar_buffer(buffer_din, buffer_waddr, buffer_wen, clk,
-                             next_char, char_address_high, buffer_ren);
-   wire [11:0] char_address = { char_address_high, rowc };
-   char_rom mychar_rom(char_address, clk, rom_char_row);
+   assign char_buffer_address = next_char;
+   assign char_rom_address = { char_buffer_data, rowc };
 
    //
    // horizontal & vertical counters, syncs and blanks
@@ -167,7 +161,7 @@ module video_generator
          next_col = 0;
          next_colc = 0;
          next_char = first_char;
-         next_char_row = rom_char_row;
+         next_char_row = char_rom_data;
       end
       // we need next_hblank here because we must detect the edge
       // in hblank & prepare for the row
@@ -178,7 +172,7 @@ module video_generator
          next_col = 0;
          next_colc = 0;
          next_char = char;
-         next_char_row = rom_char_row;
+         next_char_row = char_rom_data;
 
          // only do this once per line (positive hblank edge)
          if (hblank == 0) begin
@@ -217,7 +211,7 @@ module video_generator
             // move to the next char
             next_col = col+1;
             next_colc = 0;
-            next_char_row = rom_char_row;
+            next_char_row = char_rom_data;
          end
       end // else: !if(next_hblank)
    end // always @ (*)
@@ -242,4 +236,4 @@ module video_generator
                        video_off :
                        char_pixel ^ cursor_pixel;
    end
-endmodule
+endmodule // video_generator
