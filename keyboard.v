@@ -1,4 +1,3 @@
-// TODO define constants for the control chars
 // TODO define constants for the control codes
 module keyboard
   (input  clk,
@@ -38,7 +37,8 @@ module keyboard
    reg lcontrol_pressed;
    reg rcontrol_pressed;
    wire control_pressed = lcontrol_pressed || rcontrol_pressed;
-   // alt/meta key status
+   // alt/meta key status (vt52 doesn't have meta, but I want to use
+   // emacs & can't stand that Esc- business...)
    reg lmeta_pressed;
    reg rmeta_pressed;
    wire meta_pressed = lmeta_pressed || rmeta_pressed;
@@ -179,10 +179,10 @@ module keyboard
                 rshift_pressed <= 1;
              end
              if (ps2_byte == 8'h14) begin
-                rcontrol_pressed <= 1;
+                lcontrol_pressed <= 1;
              end
              else if (ps2_byte == 8'h11) begin
-                rmeta_pressed <= 1;
+                lmeta_pressed <= 1;
              end
              else if (ps2_byte == 8'h58) begin
                 caps_lock_active <= ~caps_lock_active;
@@ -195,7 +195,14 @@ module keyboard
           state_keymap_read: begin
              state <= state_idle;
              if (keymap_data != 0) begin
-                data <= keymap_data;
+                // apply modifier keys
+                // meta turns on the 8th bit
+                // control turns off 7th & 6th bits
+                data <= {
+                          meta_pressed,
+                          control_pressed? 2'b00 : keymap_data[6:5],
+                          keymap_data[4:0]
+                        };
                 valid <= 1;
              end
           end
