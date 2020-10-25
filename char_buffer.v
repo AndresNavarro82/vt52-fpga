@@ -17,8 +17,8 @@ module char_buffer
    reg [7:0] mem [BUF_SIZE-1:0];
 
    initial begin
-      $readmemh("pantalla/pantalla.hex", mem) ;
-      //$readmemh("pantalla/empty.hex", mem) ;
+      $readmemh("mem/test.hex", mem) ;
+      //$readmemh("mem/empty.hex", mem) ;
    end
 
    always @(posedge clk) begin

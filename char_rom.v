@@ -16,7 +16,8 @@ module char_rom
    reg [7:0]    mem [4095:0];
 
    initial begin
-      $readmemh("font/terminus_816_latin1.hex", mem) ;
+      $readmemh("mem/terminus_816_latin1.hex", mem) ;
+//      $readmemh("mem/terminus_816_bold_latin1.hex", mem) ;
    end
 
    always @(posedge clk) begin
