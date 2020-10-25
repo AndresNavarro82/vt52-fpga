@@ -10,23 +10,56 @@ module keyboard
    input ready
    );
 
+   // state: one hot encoding
+   // idle is the normal state, reading the ps/2 bus
+   // key up/down (long and short) are for key events
+   // keymap_read is for reading the keymap rom
+   localparam state_idle           = 8'b00000001;
+   localparam state_long_key_down  = 8'b00000010;
+   localparam state_short_key_down = 8'b00000100;
+   localparam state_long_key_up    = 8'b00001000;
+   localparam state_short_key_up   = 8'b00010000;
+   localparam state_keymap_read    = 8'b00100000;
+   reg [7:0] state;
+
    reg [1:0] ps2_old_clks;
    reg [10:0] ps2_raw_data;
    reg [3:0]  ps2_count;
    reg [7:0]  ps2_byte;
    // we are processing a break_code (key up)
-   reg        ps2_break_keycode;
+   reg ps2_break_keycode;
    // we are processing a long keycode (two bytes)
-   reg        ps2_long_keycode;
+   reg ps2_long_keycode;
    // shift key status
-   reg        lshift_pressed;
-   reg        rshift_pressed;
-   // TODO control keys
+   reg lshift_pressed;
+   reg rshift_pressed;
+   wire shift_pressed = lshift_pressed || rshift_pressed;
+   // control key status
+   reg lcontrol_pressed;
+   reg rcontrol_pressed;
+   wire control_pressed = lcontrol_pressed || rcontrol_pressed;
+   // alt/meta key status
+   reg lmeta_pressed;
+   reg rmeta_pressed;
+   wire meta_pressed = lmeta_pressed || rmeta_pressed;
+   // caps lock
+   reg caps_lock_active;
+   // keymap
+   wire [9:0] keymap_address;
+   wire [7:0] keymap_data;
+
+   // ps2_byte is the actual keycode, we use caps lock & shift to
+   // determine the plane we need
+   assign keymap_address = { caps_lock_active, shift_pressed, ps2_byte };
+//   keymap_rom keymap_rom(keymap_address, clk, keymap_data);
+   keymap_rom keymap_rom(keymap_address, clk, keymap_data);
 
    // we don't need to do this on the pixel clock, we could use
    // something way slower, but it works
    always @(posedge clk) begin
       if (reset) begin
+         state <= state_idle;
+
          data <= 0;
          valid <= 0;
 
@@ -41,247 +74,132 @@ module keyboard
 
          lshift_pressed <= 0;
          rshift_pressed <= 0;
+         lcontrol_pressed <= 0;
+         rcontrol_pressed <= 0;
+         lmeta_pressed <= 0;
+         rmeta_pressed <= 0;
+         caps_lock_active <= 0;
+      end
+      else if (valid && ready) begin
+         valid <= 0;
+         ps2_break_keycode <= 0;
+         ps2_long_keycode <= 0;
+         ps2_byte <= 0;
       end
       else begin
-         if (valid && ready) begin
-            valid <= 0;
-            ps2_break_keycode <= 0;
-            ps2_long_keycode <= 0;
-            ps2_byte <= 0;
-         end
-         ps2_old_clks <= {ps2_old_clks[0], ps2_clk};
+        case (state)
+          state_idle: begin
+             ps2_old_clks <= {ps2_old_clks[0], ps2_clk};
 
-         if(ps2_clk && ps2_old_clks == 2'b01) begin
-            ps2_count <= ps2_count + 1;
-            if(ps2_count == 10) begin
-               // 11 bits means we are done (XXX/TODO check parity and stop bits)
-               ps2_count <= 0;
-               ps2_byte <= ps2_raw_data[10:3];
-               // handle the breaks & long keycodes
-               if (ps2_raw_data[10:3] == 8'he0) begin
-                  ps2_long_keycode <= 1;
-                  ps2_break_keycode <= 0;
-               end
-               else if (ps2_raw_data[10:3] == 8'hf0) begin
-                  ps2_break_keycode <= 1;
-               end
-               else if (ps2_byte != 8'he0 && ps2_byte != 8'hf0) begin
-                  ps2_break_keycode <= 0;
-                  ps2_long_keycode <= 0;
-               end
-            end
-            // the data comes lsb first
-            ps2_raw_data <= {ps2_data, ps2_raw_data[10:1]};
-         end // if (ps2_clk_pos == 1)
-         if (!valid) begin
-            // only process new char if none are queued
-            if (ps2_break_keycode) begin
-               // keyup
-               if (!ps2_long_keycode) begin
-                  // keyup: short keycode
-                  if (ps2_byte == 8'h12)  begin
-                       lshift_pressed <= 0;
-                       // XXX this will not clear the char, maybe use a flag reg for this,
-                       // like char processed, instead of relying on new_char_wen &
-                       // // write_cursor_pos
-                    end
-                  if (ps2_byte == 8'h59) begin
-                       rshift_pressed <= 0;
-                       // XXX this will not clear the char, maybe use a flag reg for this,
-                       // like char processed, instead of relying on new_char_wen &
-                       // // write_cursor_pos
-                  end
-               end
-            end
-            else begin
-               // keydown
-               if(ps2_long_keycode) begin
-                  if(ps2_byte == 8'h14) begin // right control
-                     // TODO
-                  end
-               end // if (ps2_long_keycode)
-               else begin
-                  // TODO control handling
-                  if (lshift_pressed || rshift_pressed) begin
-                     // keydown: short keycode (shift pressed)
-                     valid <= 1;
-                     case (ps2_byte)
-                       8'h0e: data <= "~";
-                       8'h16: data <= "!";
-                       8'h1e: data <= "@";
-                       8'h26: data <= "#";
-                       8'h25: data <= "$";
-                       8'h2e: data <= "%";
-                       8'h36: data <= "^";
-                       8'h3d: data <= "&";
-                       8'h3e: data <= "*";
-                       8'h46: data <= "(";
-                       8'h45: data <= ")";
-                       8'h4e: data <= "_";
-                       8'h55: data <= "+";
-                       8'h5d: data <= "|";
-
-                       8'h15: data <= "Q";
-                       8'h1d: data <= "W";
-                       8'h24: data <= "E";
-                       8'h2d: data <= "R";
-                       8'h2c: data <= "T";
-                       8'h35: data <= "Y";
-                       8'h3c: data <= "U";
-                       8'h43: data <= "I";
-                       8'h44: data <= "O";
-                       8'h4d: data <= "P";
-                       8'h54: data <= "{";
-                       8'h5b: data <= "}";
-
-                       8'h1c: data <= "A";
-                       8'h1b: data <= "S";
-                       8'h23: data <= "D";
-                       8'h2b: data <= "F";
-                       8'h34: data <= "G";
-                       8'h33: data <= "H";
-                       8'h3b: data <= "J";
-                       8'h42: data <= "K";
-                       8'h4b: data <= "L";
-                       8'h4c: data <= ":";
-                       8'h52: data <= "\"";
-
-                       8'h1a: data <= "Z";
-                       8'h22: data <= "X";
-                       8'h21: data <= "C";
-                       8'h2a: data <= "V";
-                       8'h32: data <= "B";
-                       8'h31: data <= "N";
-                       8'h3a: data <= "M";
-                       8'h41: data <= "<";
-                       8'h49: data <= ">";
-                       8'h4a: data <= "?";
-
-                       // escape
-                       8'h76: data <= "\033";
-                       // tab
-                       8'h0d: data <= "\t";
-                       // backspace
-                       8'h66: data <= "\010";
-                       // space
-                       8'h29: data <= " ";
-                       // return
-                       8'h5a: data <= "\r";
-                       // shifts
-                       8'h12: begin
-                          lshift_pressed <= 1;
-                          valid <= 0;
-                          // XXX this will not clear the char, maybe use a flag reg for this,
-                          // like char processed, instead of relying on new_char_wen &
-                          // // write_cursor_pos
-                       end
-                       8'h59: begin
-                          rshift_pressed <= 1;
-                          valid <= 0;
-                          // XXX this will not clear the char, maybe use a flag reg for this,
-                          // like char processed, instead of relying on new_char_wen &
-                          // // write_cursor_pos
-                       end
-                       // caps lock
-                       8'h58: begin
-                          // TODO caps lock
-                       end
-                       default: begin
-                          valid <= 0;
-                       end
-                     endcase // case (ps2_byte)
-                  end // if (lshift_pressed || rshift_pressed)
-                  else begin
-                     // keydown: short keycode (no shift pressed)
-                     valid <= 1;
-                     case (ps2_byte)
-                       8'h0e: data <= "`";
-                       8'h16: data <= "1";
-                       8'h1e: data <= "2";
-                       8'h26: data <= "3";
-                       8'h25: data <= "4";
-                       8'h2e: data <= "5";
-                       8'h36: data <= "6";
-                       8'h3d: data <= "7";
-                       8'h3e: data <= "8";
-                       8'h46: data <= "9";
-                       8'h45: data <= "0";
-                       8'h4e: data <= "-";
-                       8'h55: data <= "=";
-                       8'h5d: data <= "\\";
-
-                       8'h15: data <= "q";
-                       8'h1d: data <= "w";
-                       8'h24: data <= "e";
-                       8'h2d: data <= "r";
-                       8'h2c: data <= "t";
-                       8'h35: data <= "y";
-                       8'h3c: data <= "u";
-                       8'h43: data <= "i";
-                       8'h44: data <= "o";
-                       8'h4d: data <= "p";
-                       8'h54: data <= "[";
-                       8'h5b: data <= "]";
-
-                       8'h1c: data <= "a";
-                       8'h1b: data <= "s";
-                       8'h23: data <= "d";
-                       8'h2b: data <= "f";
-                       8'h34: data <= "g";
-                       8'h33: data <= "h";
-                       8'h3b: data <= "j";
-                       8'h42: data <= "k";
-                       8'h4b: data <= "l";
-                       8'h4c: data <= ";";
-                       8'h52: data <= "'";
-
-                       8'h1a: data <= "z";
-                       8'h22: data <= "x";
-                       8'h21: data <= "c";
-                       8'h2a: data <= "v";
-                       8'h32: data <= "b";
-                       8'h31: data <= "n";
-                       8'h3a: data <= "m";
-                       8'h41: data <= ",";
-                       8'h49: data <= ".";
-                       8'h4a: data <= "/";
-                       // escape
-                       8'h76: data <= "\033";
-                       // tab
-                       8'h0d: data <= "\t";
-                       // backspace
-                       8'h66: data <= "\010";
-                       // space
-                       8'h29: data <= " ";
-                       // return
-                       8'h5a: data <= "\r";
-                       // shifts
-                       8'h12: begin
-                          lshift_pressed <= 1;
-                          valid <= 0;
-                          // XXX this will not clear the char, maybe use a flag reg for this,
-                          // like char processed, instead of relying on new_char_wen &
-                          // // write_cursor_pos
-                       end
-                       8'h59: begin
-                          rshift_pressed <= 1;
-                          valid <= 0;
-                          // XXX this will not clear the char, maybe use a flag reg for this,
-                          // like char processed, instead of relying on new_char_wen &
-                          // // write_cursor_pos
-                       end
-                       // caps lock
-                       8'h58: begin
-                          // TODO caps lock
-                       end
-                       default: begin
-                          valid <= 0;
-                       end
-                     endcase // case (ps2_byte)
-                  end // else: !if(lshift_pressed || rshift_pressed)
-               end // else: !if(ps2_long_keycode)
-            end // else: !if(ps2_break_keycode)
-         end // if (!write_cursor_pos && !new_char_wen)
-      end // else: !if(reset)
+             if(ps2_clk && ps2_old_clks == 2'b01) begin
+                // clock edge detected, read another bit
+                if(ps2_count == 10) begin
+                   // 11 bits means we are done (XXX/TODO check parity and stop bits)
+                   ps2_count <= 0;
+                   ps2_byte <= ps2_raw_data[10:3];
+                   // handle the breaks & long keycodes and only change to
+                   // keycode state if a complete keycode is already received
+                   if (ps2_raw_data[10:3] == 8'he0) begin
+                      ps2_break_keycode <= 0;
+                      ps2_long_keycode <= 1;
+                   end
+                   else if (ps2_raw_data[10:3] == 8'hf0) begin
+                      ps2_break_keycode <= 1;
+                   end
+                   else if (ps2_byte != 8'he0 && ps2_byte != 8'hf0) begin
+                      ps2_break_keycode <= 0;
+                      ps2_long_keycode <= 0;
+                      state <= state_short_key_down;
+                   end
+                   else if (ps2_break_keycode) begin
+                      state <= ps2_long_keycode? state_long_key_up : state_short_key_up;
+                   end
+                   else begin
+                      state <= ps2_long_keycode? state_long_key_down : state_short_key_down;
+                   end
+                end
+                else begin
+                   // the data comes lsb first
+                   ps2_raw_data <= {ps2_data, ps2_raw_data[10:1]};
+                   ps2_count <= ps2_count + 1;
+                end
+             end
+          end
+          state_long_key_up: begin
+             // we only care about the shift, control and meta states
+             state <= state_idle;
+             ps2_break_keycode <= 0;
+             ps2_long_keycode <= 0;
+             if (ps2_byte == 8'h14) begin
+                rcontrol_pressed <= 0;
+             end
+             else if (ps2_byte == 8'h11) begin
+                rmeta_pressed <= 0;
+             end
+          end
+          state_short_key_up: begin
+             // we only care about the shift, control and meta states
+             state <= state_idle;
+             ps2_break_keycode <= 0;
+             ps2_long_keycode <= 0;
+             if (ps2_byte == 8'h12) begin
+                lshift_pressed <= 0;
+             end
+             else if (ps2_byte == 8'h59) begin
+                rshift_pressed <= 0;
+             end
+             else if (ps2_byte == 8'h14) begin
+                lcontrol_pressed <= 0;
+             end
+             else if (ps2_byte == 8'h11) begin
+                lmeta_pressed <= 0;
+             end
+          end
+          state_long_key_down: begin
+             // we only care about the shift, control and meta states
+             state <= state_idle;
+             ps2_break_keycode <= 0;
+             ps2_long_keycode <= 0;
+             if (ps2_byte == 8'h14) begin
+                rcontrol_pressed <= 1;
+             end
+             else if (ps2_byte == 8'h11) begin
+                rmeta_pressed <= 1;
+             end
+          end
+          state_short_key_down: begin
+             // default value, may be overridden
+             state <= state_idle;
+             ps2_break_keycode <= 0;
+             ps2_long_keycode <= 0;
+             if (ps2_byte == 8'h12) begin
+                lshift_pressed <= 1;
+             end
+             else if (ps2_byte == 8'h59) begin
+                rshift_pressed <= 1;
+             end
+             if (ps2_byte == 8'h14) begin
+                rcontrol_pressed <= 1;
+             end
+             else if (ps2_byte == 8'h11) begin
+                rmeta_pressed <= 1;
+             end
+             else if (ps2_byte == 8'h58) begin
+                caps_lock_active <= ~caps_lock_active;
+             end
+             else begin
+                // regular keys, read from keymap ROM
+                state <= state_keymap_read;
+             end
+          end
+          state_keymap_read: begin
+             state <= state_idle;
+             if (keymap_data != 0) begin
+                data <= keymap_data;
+                valid <= 1;
+             end
+          end
+        endcase // case (state)
+      end // else: !if(valid && ready)
    end // always @ (posedge clk)
 endmodule
