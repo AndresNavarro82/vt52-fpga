@@ -1,4 +1,5 @@
 // TODO define constants for the control codes
+// TODO add linefeed, del, arrow & function keys
 module keyboard
   (input  clk,
    input  reset,

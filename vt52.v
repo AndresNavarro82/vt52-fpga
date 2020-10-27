@@ -15,7 +15,10 @@ module top (input       clk,
 
    // pll outputs
    wire locked;
-   wire fast_clk;
+   wire clk_usb;
+   wire clk_vga;
+   assign clk_vga = clk_usb;
+
    // scroll
    wire [ADDR_BITS-1:0] new_first_char;
    wire new_first_char_wen;
@@ -44,15 +47,24 @@ module top (input       clk,
    // video generator
    wire vblank, hblank;
 
+   // led follows the cursor blink
+   assign led = cursor_blink_on;
+
    // USB
    // Generate reset signal
    reg [5:0] reset_cnt = 0;
-   wire reset = ~reset_cnt[5];
-   always @(posedge fast_clk)
+   wire reset_usb = ~reset_cnt[5];
+   always @(posedge clk_usb)
      if ( locked )
-       reset_cnt <= reset_cnt + reset;
+       reset_cnt <= reset_cnt + reset_usb;
 
-   // uart pipeline in
+   // we can use this directly because it falls on an even number,
+   // so it's already sync to the vga clock
+   wire reset_vga;
+   assign reset_vga = reset_usb;
+
+
+   // uart input/output
    wire [7:0] uart_out_data;
    wire uart_out_valid;
    wire uart_out_ready;
@@ -61,55 +73,54 @@ module top (input       clk,
    wire uart_in_valid;
    wire uart_in_ready;
 
+   // USB host detect
+   assign pin_pu = 1'b1;
+
    //
    // Instantiate all modules
    //
    // TODO rewrite these instantiations to use the param names
-   pll pll(clk, fast_clk, locked);
-   keyboard keyboard(fast_clk, reset, ps2_data, ps2_clk,
+   pll pll(clk, clk_usb, locked);
+   // They keyboard can use the usb clock as it only interacts with the usb uart
+   keyboard keyboard(clk_usb, reset_usb, ps2_data, ps2_clk,
                      uart_in_data, uart_in_valid, uart_in_ready
                      );
    // TODO pass the cursor bits parameter
-   cursor cursor(fast_clk, reset, vblank, cursor_x, cursor_y, cursor_blink_on,
+   cursor cursor(clk_vga, reset_vga, vblank, cursor_x, cursor_y, cursor_blink_on,
                  new_cursor_x, new_cursor_y, new_cursor_wen
                  );
-   simple_register #(.SIZE(ADDR_BITS)) scroll_register(fast_clk, reset, new_first_char,
+   simple_register #(.SIZE(ADDR_BITS)) scroll_register(clk_vga, reset_vga, new_first_char,
                                                        new_first_char_wen, first_char);
-   char_buffer char_buffer(new_char, new_char_address, new_char_wen, fast_clk,
+   char_buffer char_buffer(new_char, new_char_address, new_char_wen, clk_vga,
                            char_address, char, buffer_ren);
-   char_rom char_rom(char_rom_address, fast_clk, char_rom_data);
+   char_rom char_rom(char_rom_address, clk_vga, char_rom_data);
    // TODO pass COLUMNS & ROWS PARAMS
-   video_generator video_generator(fast_clk, reset,
+   video_generator video_generator(clk_vga, reset_vga,
                                    hsync, vsync, video, hblank, vblank,
                                    cursor_x, cursor_y, cursor_blink_on,
                                    first_char,
                                    char_address, char,
                                    char_rom_address, char_rom_data
                                    );
-   // usb uart - this instantiates the entire USB device.
-   usb_uart uart(.clk_48mhz  (fast_clk),
-                 .reset      (reset),
-                 // pins
-                 .pin_usb_p( pin_usb_p ),
-                 .pin_usb_n( pin_usb_n ),
-                 // uart pipeline in (keyboard->process)
-                 .uart_in_data( uart_in_data ),
-                 .uart_in_valid( uart_in_valid ),
-                 .uart_in_ready( uart_in_ready ),
-                 // uart pipeline out (process->screen)
-                 .uart_out_data( uart_out_data ),
-                 .uart_out_valid( uart_out_valid ),
-                 .uart_out_ready( uart_out_ready  )
+   usb_uart uart(.clk_48mhz(clk_usb),
+                 .reset(reset_usb),
+                 // usb pins
+                 .pin_usb_p(pin_usb_p),
+                 .pin_usb_n(pin_usb_n),
+                 // uart pipeline in (keyboard->usb)
+                 .uart_in_data(uart_in_data),
+                 .uart_in_valid(uart_in_valid),
+                 .uart_in_ready(uart_in_ready),
+                 // uart pipeline out (usb->command_handler)
+                 .uart_out_data(uart_out_data),
+                 .uart_out_valid(uart_out_valid),
+                 .uart_out_ready(uart_out_ready)
                  );
 
-   command_handler command_handler(fast_clk, reset,
+   command_handler command_handler(clk_vga, reset_vga,
                                    uart_out_data, uart_out_valid, uart_out_ready,
                                    new_first_char, new_first_char_wen,
                                    new_char, new_char_address, new_char_wen,
                                    new_cursor_x, new_cursor_y, new_cursor_wen);
 
-   // USB host detect
-   assign pin_pu = 1'b1;
-   // led follows the cursor blink
-   assign led = cursor_blink_on;
  endmodule
