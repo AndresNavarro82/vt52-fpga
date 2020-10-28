@@ -6,7 +6,7 @@ module simple_register
    (input wire clk,
     input wire reset,
     input wire [SIZE-1:0] idata,
-    input wire            wen,
+    input wire wen,
     output reg [SIZE-1:0] odata
     );
 

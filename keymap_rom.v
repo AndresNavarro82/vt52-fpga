@@ -8,8 +8,8 @@
  * 11: caps lock & shift
  */
 module keymap_rom
-  (input [9:0] addr,
-   input        clk,
+  (input clk,
+   input [9:0] addr,
    output [7:0] dout
    );
 

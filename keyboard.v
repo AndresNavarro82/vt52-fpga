@@ -52,8 +52,11 @@ module keyboard
    // ps2_byte is the actual keycode, we use caps lock & shift to
    // determine the plane we need
    assign keymap_address = { caps_lock_active, shift_pressed, ps2_byte };
-//   keymap_rom keymap_rom(keymap_address, clk, keymap_data);
-   keymap_rom keymap_rom(keymap_address, clk, keymap_data);
+
+   keymap_rom keymap_rom(.clk(clk),
+                         .addr(keymap_address),
+                         .dout(keymap_data)
+                         );
 
    // we don't need to do this on the pixel clock, we could use
    // something way slower, but it works

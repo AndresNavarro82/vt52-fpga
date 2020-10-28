@@ -9,7 +9,6 @@ module video_generator
     parameter COL_BITS = 7,
     parameter ADDR_BITS = 11,
     // first address outside the visible area
-    parameter PAST_LAST_ROW = ROWS * COLS
     )
    (input clk,
     input reset,
@@ -33,6 +32,7 @@ module video_generator
     output wire [11:0] char_rom_address,
     input [7:0] char_rom_data
     );
+   localparam PAST_LAST_ROW = ROWS * COLS;
    // VGA Signal 640x400 @ 70 Hz timing
    // from http://tinyvga.com/vga-timing/640x400@70Hz
    // Total size, visible size, front and back porches and sync pulse size

@@ -9,6 +9,8 @@ module top (input       clk,
             inout       pin_usb_n,
             output wire pin_pu
             );
+   localparam ROWS = 24;
+   localparam COLS = 80;
    localparam ROW_BITS = 5;
    localparam COL_BITS = 7;
    localparam ADDR_BITS = 11;
@@ -59,33 +61,77 @@ module top (input       clk,
    //
    // Instantiate all modules
    //
-   // TODO rewrite these instantiations to use the param names
    clock_generator clock_generator(.clk(clk),
                                    .clk_usb(clk_usb),
                                    .reset_usb(reset_usb),
                                    .clk_vga(clk_vga),
                                    .reset_vga(reset_vga)
                                    );
-   keyboard keyboard(clk_usb, reset_usb, ps2_data, ps2_clk,
-                     uart_in_data, uart_in_valid, uart_in_ready
+
+   keyboard keyboard(.clk(clk_usb),
+                     .reset(reset_usb),
+                     .ps2_data(ps2_data),
+                     .ps2_clk(ps2_clk),
+                     .data(uart_in_data),
+                     .valid(uart_in_valid),
+                     .ready(uart_in_ready)
                      );
-   // TODO pass the cursor bits parameter
-   cursor cursor(clk_usb, reset_usb, vblank, cursor_x, cursor_y, cursor_blink_on,
-                 new_cursor_x, new_cursor_y, new_cursor_wen
-                 );
-   simple_register #(.SIZE(ADDR_BITS)) scroll_register(clk_usb, reset_usb, new_first_char,
-                                                       new_first_char_wen, first_char);
-   char_buffer char_buffer(clk_usb, new_char, new_char_address, new_char_wen,
-                           char_address, char);
-   char_rom char_rom(clk_usb, char_rom_address, char_rom_data);
-   // TODO pass COLUMNS & ROWS PARAMS
-   video_generator video_generator(clk_vga, reset_vga,
-                                   hsync, vsync, video, hblank, vblank,
-                                   cursor_x, cursor_y, cursor_blink_on,
-                                   first_char,
-                                   char_address, char,
-                                   char_rom_address, char_rom_data
-                                   );
+
+   cursor #(.ROW_BITS(ROW_BITS), .COL_BITS(COL_BITS))
+      cursor(.clk(clk_usb),
+             .reset(reset_usb),
+             .tick(vblank),
+             .x(cursor_x),
+             .y(cursor_y),
+             .blink_on(cursor_blink_on),
+             .new_x(new_cursor_x),
+             .new_y(new_cursor_y),
+             .wen(new_cursor_wen)
+            );
+
+   simple_register #(.SIZE(ADDR_BITS))
+      scroll_register(.clk(clk_usb),
+                      .reset(reset_usb),
+                      .idata(new_first_char),
+                      .wen(new_first_char_wen),
+                      .odata(first_char)
+                      );
+
+   char_buffer char_buffer(.clk(clk_usb),
+                           .din(new_char),
+                           .waddr(new_char_address),
+                           .wen(new_char_wen),
+                           .raddr(char_address),
+                           .dout(char)
+                           );
+
+   char_rom char_rom(.clk(clk_usb),
+                     .addr(char_rom_address),
+                     .dout(char_rom_data)
+                     );
+
+   video_generator #(.ROWS(ROWS),
+                     .COLS(COLS),
+                     .ROW_BITS(ROW_BITS),
+                     .COL_BITS(COL_BITS),
+                     .ADDR_BITS(ADDR_BITS))
+      video_generator(.clk(clk_vga),
+                      .reset(reset_vga),
+                      .hsync(hsync),
+                      .vsync(vsync),
+                      .video(video),
+                      .hblank(hblank),
+                      .vblank(vblank),
+                      .cursor_x(cursor_x),
+                      .cursor_y(cursor_y),
+                      .cursor_blink_on(cursor_blink_on),
+                      .first_char(first_char),
+                      .char_buffer_address(char_address),
+                      .char_buffer_data(char),
+                      .char_rom_address(char_rom_address),
+                      .char_rom_data(char_rom_data)
+                      );
+
    usb_uart uart(.clk_48mhz(clk_usb),
                  .reset(reset_usb),
                  // usb pins
@@ -101,10 +147,24 @@ module top (input       clk,
                  .uart_out_ready(uart_out_ready)
                  );
 
-   command_handler command_handler(clk_usb, reset_usb,
-                                   uart_out_data, uart_out_valid, uart_out_ready,
-                                   new_first_char, new_first_char_wen,
-                                   new_char, new_char_address, new_char_wen,
-                                   new_cursor_x, new_cursor_y, new_cursor_wen);
+   command_handler #(.ROWS(ROWS),
+                     .COLS(COLS),
+                     .ROW_BITS(ROW_BITS),
+                     .COL_BITS(COL_BITS),
+                     .ADDR_BITS(ADDR_BITS))
+      command_handler(.clk(clk_usb),
+                      .reset(reset_usb),
+                      .data(uart_out_data),
+                      .valid(uart_out_valid),
+                      .ready(uart_out_ready),
+                      .new_first_char(new_first_char),
+                      .new_first_char_wen(new_first_char_wen),
+                      .new_char(new_char),
+                      .new_char_address(new_char_address),
+                      .new_char_wen(new_char_wen),
+                      .new_cursor_x(new_cursor_x),
+                      .new_cursor_y(new_cursor_y),
+                      .new_cursor_wen(new_cursor_wen)
+                      );
 
  endmodule

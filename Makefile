@@ -7,7 +7,7 @@ MEMS = $(MEM_DIR)/empty.hex $(MEM_DIR)/test.hex \
 	$(MEM_DIR)/terminus_816_latin1.hex $(MEM_DIR)/terminus_816_bold_latin1.hex \
 	$(MEM_DIR)/keymap.hex
 SRCS := char_buffer.v char_rom.v clock_generator.v command_handler.v cursor.v \
-	cursor_position.v cursor_blinker.v keyboard.v keymap_rom.v pll.v \
+	cursor_blinker.v keyboard.v keymap_rom.v pll.v simple_register.v \
 	video_generator.v vt52.v
 USB_SRCS = \
 	$(RTL_USB_DIR)/edge_detect.v \

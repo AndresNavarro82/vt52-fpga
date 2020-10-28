@@ -9,7 +9,10 @@ module clock_generator
    wire locked;
    reg vga_clk_divider;
 
-   pll pll(clk, clk_usb, locked);
+   pll pll(.clock_in(clk),
+           .clock_out(clk_usb),
+           .locked(locked)
+           );
 
    // Generate reset signal
    reg [5:0] reset_cnt = 0;

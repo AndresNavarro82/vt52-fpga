@@ -6,18 +6,35 @@ module cursor
     parameter COL_BITS = 7)
    (input clk,
     input reset,
-    input vblank,
-    output wire [COL_BITS-1:0] cursor_x,
-    output wire [ROW_BITS-1:0] cursor_y,
-    output wire cursor_blink_on,
-    input [COL_BITS-1:0] new_cursor_x,
-    input [ROW_BITS-1:0] new_cursor_y,
-    input new_cursor_wen
+    input tick,
+    output wire [COL_BITS-1:0] x,
+    output wire [ROW_BITS-1:0] y,
+    output wire blink_on,
+    input [COL_BITS-1:0] new_x,
+    input [ROW_BITS-1:0] new_y,
+    input wen
     );
 
-   cursor_blinker cursor_blinker(clk, reset, vblank, new_cursor_wen, cursor_blink_on);
-   simple_register #(.SIZE(COL_BITS)) cursor_x_reg(clk, reset, new_cursor_x,
-                                                   new_cursor_wen, cursor_x);
-   simple_register #(.SIZE(ROW_BITS)) cursor_y_reg(clk, reset, new_cursor_y,
-                                                   new_cursor_wen, cursor_y);
+   cursor_blinker cursor_blinker(.clk(clk),
+                                 .reset(reset),
+                                 .tick(tick),
+                                 .reset_count(wen),
+                                 .blink_on(blink_on)
+                                 );
+
+   simple_register #(.SIZE(COL_BITS))
+      cursor_x_reg(.clk(clk),
+                   .reset(reset),
+                   .idata(new_x),
+                   .wen(wen),
+                   .odata(x)
+                   );
+
+   simple_register #(.SIZE(ROW_BITS))
+      cursor_y_reg(.clk(clk),
+                   .reset(reset),
+                   .idata(new_y),
+                   .wen(wen),
+                   .odata(y)
+                   );
 endmodule

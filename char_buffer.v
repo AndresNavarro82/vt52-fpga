@@ -8,7 +8,7 @@ module char_buffer
    (input wire clk,
     input wire [7:0] din,
     input wire [ADDR_BITS-1:0] waddr,
-    input wire write_en,
+    input wire wen,
     input wire [ADDR_BITS-1:0] raddr,
     output reg [7:0] dout
     );
@@ -21,7 +21,7 @@ module char_buffer
    end
 
    always @(posedge clk) begin
-      if (write_en) mem[waddr] <= din;
+      if (wen) mem[waddr] <= din;
       dout <= mem[raddr];
    end
 endmodule
