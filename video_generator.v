@@ -191,12 +191,12 @@ module video_generator
          next_colc = colc+1;
          next_char = char;
 
-         if (colc == 6) begin
+         if (colc == 7) begin
             // prepare to read next char (it takes two cycles,
             // one to read from ram & one to read from rom)
+            // Since the memory bus runs at twice the pixel clock rate
+            // we can do it just at the last pixel
             next_char = char+1;
-         end
-         else if (colc == 7) begin
             // move to the next char
             next_col = col+1;
             next_colc = 0;
