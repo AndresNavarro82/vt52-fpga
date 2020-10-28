@@ -17,7 +17,6 @@ module top (input       clk,
    wire locked;
    wire clk_usb;
    wire clk_vga;
-   assign clk_vga = clk_usb;
 
    // scroll
    wire [ADDR_BITS-1:0] new_first_char;
@@ -58,11 +57,19 @@ module top (input       clk,
      if ( locked )
        reset_cnt <= reset_cnt + reset_usb;
 
-   // we can use this directly because it falls on an even number,
-   // so it's already sync to the vga clock
+   // we can use this directly because it's already sync'ed to the vga clock
    wire reset_vga;
    assign reset_vga = reset_usb;
+   // divide by two
+   reg vga_clk_divider;
+   always @(posedge clk_usb) begin
+      if (reset_usb) vga_clk_divider <= 0;
+      else vga_clk_divider <= ~vga_clk_divider;
+   end
+   assign clk_vga = vga_clk_divider;
 
+   // USB host detect
+   assign pin_pu = 1'b1;
 
    // uart input/output
    wire [7:0] uart_out_data;
@@ -72,9 +79,6 @@ module top (input       clk,
    wire [7:0] uart_in_data;
    wire uart_in_valid;
    wire uart_in_ready;
-
-   // USB host detect
-   assign pin_pu = 1'b1;
 
    //
    // Instantiate all modules
@@ -86,14 +90,14 @@ module top (input       clk,
                      uart_in_data, uart_in_valid, uart_in_ready
                      );
    // TODO pass the cursor bits parameter
-   cursor cursor(clk_vga, reset_vga, vblank, cursor_x, cursor_y, cursor_blink_on,
+   cursor cursor(clk_usb, reset_usb, vblank, cursor_x, cursor_y, cursor_blink_on,
                  new_cursor_x, new_cursor_y, new_cursor_wen
                  );
-   simple_register #(.SIZE(ADDR_BITS)) scroll_register(clk_vga, reset_vga, new_first_char,
+   simple_register #(.SIZE(ADDR_BITS)) scroll_register(clk_usb, reset_usb, new_first_char,
                                                        new_first_char_wen, first_char);
-   char_buffer char_buffer(new_char, new_char_address, new_char_wen, clk_vga,
+   char_buffer char_buffer(new_char, new_char_address, new_char_wen, clk_usb,
                            char_address, char, buffer_ren);
-   char_rom char_rom(char_rom_address, clk_vga, char_rom_data);
+   char_rom char_rom(char_rom_address, clk_usb, char_rom_data);
    // TODO pass COLUMNS & ROWS PARAMS
    video_generator video_generator(clk_vga, reset_vga,
                                    hsync, vsync, video, hblank, vblank,
@@ -117,7 +121,7 @@ module top (input       clk,
                  .uart_out_ready(uart_out_ready)
                  );
 
-   command_handler command_handler(clk_vga, reset_vga,
+   command_handler command_handler(clk_usb, reset_usb,
                                    uart_out_data, uart_out_valid, uart_out_ready,
                                    new_first_char, new_first_char_wen,
                                    new_char, new_char_address, new_char_wen,

@@ -59,7 +59,8 @@ module command_handler
 
    reg [7:0] state;
 
-   // if we are erasing part of the screen we can't receive new commands
+   // if we are erasing part of the screen or moving the cursor
+   // we can't receive new commands
    assign ready = (state & (state_erase | state_cursor | state_addr)) == 0;
    assign new_char = new_char_q;
    assign new_char_address = new_char_address_q;

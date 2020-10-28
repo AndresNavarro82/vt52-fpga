@@ -1,6 +1,5 @@
 /**
  * 80x24 char generator (8x16 char size) & sync generator
- * The pixel clock is half the clk input
  */
 module video_generator
   #(parameter ROWS = 24,
@@ -37,18 +36,16 @@ module video_generator
    // VGA Signal 640x400 @ 70 Hz timing
    // from http://tinyvga.com/vga-timing/640x400@70Hz
    // Total size, visible size, front and back porches and sync pulse size
-   // clk is 48Mhz (because USB...), so about twice what we need (around 25Mhz)
-   // Every horizontal value is multiplied by two because we have a clock
-   // that runs at twice the pixel rate
-   localparam hbits = 12;
-   localparam hpixels = 2*800;
-   localparam hbp = 2*48;
-   localparam hvisible = 2*640;
-   localparam hfp = 2*16;
-   localparam hpulse = 2*96;
+   // clk is 24Mhz (half USB...), so about what we need (around 25Mhz)
+   localparam hbits = 10;
+   localparam hpixels = 800;
+   localparam hbp = 48;
+   localparam hvisible = 640;
+   localparam hfp = 16;
+   localparam hpulse = 96;
    // Added 8 to vbp and vfp to compensate for the missing character row
-   // (25 * 16pixels == 400, we are using 24 rows so we are 16 pixels short)
-   localparam vbits = 12;
+   // (25 * 16 == 400, we are using 24 rows so we are 16 pixels short)
+   localparam vbits = 9;
    localparam vlines = 449;
    localparam vbp = 35 + 8;
    localparam vvisible = 400 - 16;
@@ -66,7 +63,6 @@ module video_generator
    // These are to combine the chars & the cursor for video output
    reg is_under_cursor;
    reg cursor_pixel;
-   reg [2:0] col_index;
    reg char_pixel;
    reg combined_pixel;
 
@@ -78,12 +74,9 @@ module video_generator
    // character generation
    reg [ROW_BITS-1:0] row, next_row;
    reg [COL_BITS-1:0] col, next_col;
-   // columns counts two for every real column because the clk is twice the pixel rate
-   reg [3:0] colc, next_colc;
+   // these count the rows and cols of pixels inside a char (8x16)
+   reg [2:0] colc, next_colc;
    reg [3:0] rowc, next_rowc;
-   // here we make the real column index, accounting for the double rate and
-   // the fact that the font has the order of the pixels mirrored
-   wire [2:0] rcolc = colc[3:1];
    // maintain the next address to the char buffer
    reg [ADDR_BITS-1:0] char, next_char;
 
@@ -198,12 +191,12 @@ module video_generator
          next_colc = colc+1;
          next_char = char;
 
-         if (colc == 14) begin
+         if (colc == 6) begin
             // prepare to read next char (it takes two cycles,
             // one to read from ram & one to read from rom)
             next_char = char+1;
          end
-         else if (colc == 15) begin
+         else if (colc == 7) begin
             // move to the next char
             next_col = col+1;
             next_colc = 0;
@@ -223,9 +216,9 @@ module video_generator
       // cursor pixel: invert video when we are under the cursor (if it's blinking)
       is_under_cursor = (cursor_x == col) & (cursor_y == row);
       cursor_pixel = is_under_cursor & cursor_blink_on;
-      // char pixel: read from the appropiate char, row & col on the font ROM
-      col_index = 7 - rcolc;
-      char_pixel = char_rom_data[col_index];
+      // char pixel: read from the appropiate char, row & col on the font ROM,
+      // the pixels LSB->MSB ordered
+      char_pixel = char_rom_data[7 - colc];
       // combine, but only emit video on non-blanking periods
       combined_pixel = (next_hblank || next_vblank)?
                        video_off :
