@@ -7,13 +7,13 @@
  * at http://scripts.sil.org/OFL
  */
 module char_rom
-  (input [11:0] addr,
-   input        clk,
+  (input clk,
+   input [11:0] addr,
    output [7:0] dout
    );
 
-   reg [7:0]    dout;
-   reg [7:0]    mem [4095:0];
+   reg [7:0] dout;
+   reg [7:0] mem [4095:0];
 
    initial begin
       $readmemh("mem/terminus_816_latin1.hex", mem) ;

@@ -1,17 +1,16 @@
 /**
- * Char Buffer RAM (2000x8)
- * (25 lines of 80 characters)
+ * Char Buffer RAM (1920x8)
+ * (24 lines of 80 characters)
  */
 module char_buffer
-  #(parameter BUF_SIZE = 2000,
+  #(parameter BUF_SIZE = 1920,
     parameter ADDR_BITS = 11)
-   (input wire [7:0] din,
+   (input wire clk,
+    input wire [7:0] din,
     input wire [ADDR_BITS-1:0] waddr,
     input wire write_en,
-    input wire clk,
     input wire [ADDR_BITS-1:0] raddr,
-    output reg [7:0] dout,
-    input wire read_en
+    output reg [7:0] dout
     );
 
    reg [7:0] mem [BUF_SIZE-1:0];
@@ -23,6 +22,6 @@ module char_buffer
 
    always @(posedge clk) begin
       if (write_en) mem[waddr] <= din;
-      if (read_en) dout <= mem[raddr];
+      dout <= mem[raddr];
    end
 endmodule
