@@ -103,7 +103,7 @@ module command_handler
             case (state)
               state_char: begin
                  // new char arrived
-                 if (data >= 8'h20 && data <= 8'h7e) begin
+                 if (data >= 8'h20 && data != 8'h7f) begin
                     // printable char, easy
                     new_char_q <= data;
                     new_char_address_q <= current_char_addr;
