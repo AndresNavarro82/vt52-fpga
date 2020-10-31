@@ -1,5 +1,9 @@
-// TODO define constants for the control codes
-// TODO add linefeed, del, arrow & function keys
+// TODO add 1k of keymap ROM and move all logic
+// to the rom (shift/meta/control/caps lock/spacial keys)
+// encode keytype in the rom:
+// 0xxxxxxx: regular ASCII key
+// 10xxxxxx: control/meta/shift or caps lock, each bit is a key, all 0 for caps lock
+// 11xxxxxx: special key, ESC + upper case ASCII (clear msb to get char)
 module keyboard
   (input  clk,
    input  reset,
@@ -14,12 +18,16 @@ module keyboard
    // idle is the normal state, reading the ps/2 bus
    // key up/down (long and short) are for key events
    // keymap_read is for reading the keymap rom
+   // esc_char is for sending ESC- prefixed chars
    localparam state_idle           = 8'b00000001;
    localparam state_long_key_down  = 8'b00000010;
    localparam state_short_key_down = 8'b00000100;
    localparam state_long_key_up    = 8'b00001000;
    localparam state_short_key_up   = 8'b00010000;
    localparam state_keymap_read    = 8'b00100000;
+   localparam state_esc_char       = 8'b01000000;
+   localparam esc = 8'h1b;
+
    reg [7:0] state;
 
    reg [1:0] ps2_old_clks;
@@ -48,6 +56,8 @@ module keyboard
    // keymap
    wire [9:0] keymap_address;
    wire [7:0] keymap_data;
+   // special char to send after ESC
+   reg [7:0] special_data;
 
    // ps2_byte is the actual keycode, we use caps lock & shift to
    // determine the plane we need
@@ -83,6 +93,8 @@ module keyboard
          lmeta_pressed <= 0;
          rmeta_pressed <= 0;
          caps_lock_active <= 0;
+
+         special_data <= 0;
       end
       else if (valid && ready) begin
          valid <= 0;
@@ -160,7 +172,8 @@ module keyboard
              end
           end
           state_long_key_down: begin
-             // we only care about the shift, control and meta states
+             // we care about the shift, control and meta states
+             // and also arrows, del & insert (line feed)
              state <= state_idle;
              ps2_break_keycode <= 0;
              ps2_long_keycode <= 0;
@@ -169,6 +182,64 @@ module keyboard
              end
              else if (ps2_byte == 8'h11) begin
                 rmeta_pressed <= 1;
+             end
+             else if (ps2_byte == 8'h71) begin
+                // DEL key, send either DEL or US (if control pressed)
+                data <= {
+                         1'b0,
+                         control_pressed? 2'b00 : 2'b11,
+                         5'b11111
+                         };
+                valid <= 1;
+             end
+             else if (ps2_byte == 8'h70) begin
+                // INS key, send line feed char
+                data <= 8'h0a;
+                valid <= 1;
+             end
+             else if (ps2_byte == 8'h75) begin
+                // up arrow, send either Esc-A or Esc-C^A (if control pressed)
+                data <= esc;
+                valid <= 1;
+                state <= state_esc_char;
+                special_data <= {
+                                 1'b0,
+                                 control_pressed? 2'b00 : 2'b11,
+                                 5'b00001
+                                };
+             end
+             else if (ps2_byte == 8'h72) begin
+                // down arrow, send either Esc-B or Esc-C^B (if control pressed)
+                data <= esc;
+                valid <= 1;
+                state <= state_esc_char;
+                special_data <= {
+                                 1'b0,
+                                 control_pressed? 2'b00 : 2'b11,
+                                 5'b00010
+                                 };
+             end
+             else if (ps2_byte == 8'h74) begin
+                // right arrow, send either Esc-C or Esc-C^C (if control pressed)
+                data <= esc;
+                valid <= 1;
+                state <= state_esc_char;
+                special_data <= {
+                                 1'b0,
+                                 control_pressed? 2'b00 : 2'b11,
+                                 5'b00011
+                                 };
+             end
+             else if (ps2_byte == 8'h6b) begin
+                // left arrow, send either Esc-d Esc-C^D (if control pressed)
+                data <= esc;
+                valid <= 1;
+                state <= state_esc_char;
+                special_data <= {
+                                 1'b0,
+                                 control_pressed? 2'b00 : 2'b11,
+                                 5'b00100
+                                 };
              end
           end
           state_short_key_down: begin
@@ -191,6 +262,27 @@ module keyboard
              else if (ps2_byte == 8'h58) begin
                 caps_lock_active <= ~caps_lock_active;
              end
+             else if (ps2_byte == 8'h05) begin
+                // F1, map to left blank key: Esc-P
+                state <= state_esc_char;
+                special_data <= "P";
+                data <= esc;
+                valid <= 1;
+             end
+             else if (ps2_byte == 8'h06) begin
+                // F1, map to center blank key: Esc-Q
+                state <= state_esc_char;
+                special_data <= "Q";
+                data <= esc;
+                valid <= 1;
+             end
+             else if (ps2_byte == 8'h04) begin
+                // F1, map to right blank key: Esc-R
+                state <= state_esc_char;
+                special_data <= "R";
+                data <= esc;
+                valid <= 1;
+             end
              else begin
                 // regular keys, read from keymap ROM
                 state <= state_keymap_read;
@@ -203,10 +295,22 @@ module keyboard
                 // meta turns on the 8th bit
                 // control turns off 7th & 6th bits
                 data <= {
-                          meta_pressed,
-                          control_pressed? 2'b00 : keymap_data[6:5],
-                          keymap_data[4:0]
+                         meta_pressed,
+                         control_pressed? 2'b00 : keymap_data[6:5],
+                         keymap_data[4:0]
                         };
+                valid <= 1;
+             end
+          end
+          state_esc_char: begin
+             // only send special char after ESC was successfully sent
+             if (valid == 0) begin
+                state <= state_idle;
+                data <= {
+                         1'b0,
+                         control_pressed? 2'b00 : special_data[6:5],
+                         special_data[4:0]
+                         };
                 valid <= 1;
              end
           end
