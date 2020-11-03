@@ -1,9 +1,3 @@
-// TODO add 1k of keymap ROM and move all logic
-// to the rom (shift/meta/control/caps lock/spacial keys)
-// encode keytype in the rom:
-// 0xxxxxxx: regular ASCII key
-// 10xxxxxx: control/meta/shift or caps lock, each bit is a key, all 0 for caps lock
-// 11xxxxxx: special key, ESC + upper case ASCII (clear msb to get char)
 module keyboard
   (input  clk,
    input  reset,
@@ -61,6 +55,11 @@ module keyboard
    // shift to determine the plane we need
    assign keymap_address = { ps2_long_keycode, caps_lock_active, shift_pressed, ps2_byte };
 
+   // address is 3 bits for longkeycode/capslock/shift + 8 bits for keycode
+   // data is on of
+   // 0xxxxxxx: regular ASCII key
+   // 10xxxxxx: control/meta/shift or caps lock, each bit is a key, all 0 for caps lock
+   // 11xxxxxx: special key, ESC + upper case ASCII (clear msb to get char)
    keymap_rom keymap_rom(.clk(clk),
                          .addr(keymap_address),
                          .dout(keymap_data)
