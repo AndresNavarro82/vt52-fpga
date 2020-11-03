@@ -19,22 +19,19 @@ module keyboard
    // key up/down (long and short) are for key events
    // keymap_read is for reading the keymap rom
    // esc_char is for sending ESC- prefixed chars
-   localparam state_idle           = 8'b00000001;
-   localparam state_long_key_down  = 8'b00000010;
-   localparam state_short_key_down = 8'b00000100;
-   localparam state_long_key_up    = 8'b00001000;
-   localparam state_short_key_up   = 8'b00010000;
-   localparam state_keymap_down    = 8'b00100000;
-   localparam state_keymap_up      = 8'b01000000;
-   localparam state_esc_char       = 8'b10000000;
+   localparam state_idle        = 5'b00001;
+   localparam state_keymap      = 5'b00010;
+   localparam state_key_down    = 5'b00100;
+   localparam state_key_up      = 5'b01000;
+   localparam state_esc_char    = 5'b10000;
+
    localparam esc = 8'h1b;
 
    localparam keycode_regular = 2'b0x;
    localparam keycode_modifier = 2'b10;
    localparam keycode_escaped = 2'b11;
 
-
-   reg [7:0] state;
+   reg [4:0] state;
 
    reg [1:0] ps2_old_clks;
    reg [10:0] ps2_raw_data;
@@ -93,16 +90,13 @@ module keyboard
          special_data <= 0;
       end
       else if (valid && ready) begin
+         // as soon as data is transmitted, clear valid
          valid <= 0;
-         ps2_break_keycode <= 0;
-         ps2_long_keycode <= 0;
-         ps2_byte <= 0;
       end
       else begin
         case (state)
           state_idle: begin
              ps2_old_clks <= {ps2_old_clks[0], ps2_clk};
-
              if(ps2_clk && ps2_old_clks == 2'b01) begin
                 // clock edge detected, read another bit
                 if(ps2_count == 10) begin
@@ -118,16 +112,8 @@ module keyboard
                    else if (ps2_raw_data[10:3] == 8'hf0) begin
                       ps2_break_keycode <= 1;
                    end
-                   else if (ps2_byte != 8'he0 && ps2_byte != 8'hf0) begin
-                      ps2_break_keycode <= 0;
-                      ps2_long_keycode <= 0;
-                      state <= state_short_key_down;
-                   end
-                   else if (ps2_break_keycode) begin
-                      state <= ps2_long_keycode? state_long_key_up : state_short_key_up;
-                   end
                    else begin
-                      state <= ps2_long_keycode? state_long_key_down : state_short_key_down;
+                      state <= state_keymap;
                    end
                 end
                 else begin
@@ -137,39 +123,33 @@ module keyboard
                 end
              end
           end
-          state_long_key_up: begin
+          state_keymap: begin
+             // after reading the keymap we can finally process the key
+             state <= ps2_break_keycode? state_key_up : state_key_down;
+          end
+          state_key_up: begin
+             // on key up we only care about released modifiers
              ps2_break_keycode <= 0;
              ps2_long_keycode <= 0;
-             state <= state_keymap_up;
-          end
-          state_short_key_up: begin
-             ps2_break_keycode <= 0;
-             state <= state_keymap_up;
-          end
-          state_long_key_down: begin
-             ps2_long_keycode <= 0;
-             state <= state_keymap_down;
-          end
-          state_short_key_down: begin
-             state <= state_keymap_down;
-          end
-          state_keymap_up: begin
              state <= state_idle;
              if (keymap_data[7:6] == keycode_modifier) begin
                 // the released modifier is in keymap_data[5:0]
+                // or 0 for caps lock
                 modifier_pressed <= modifier_pressed & ~keymap_data[5:0];
              end
           end
-          state_keymap_down: begin
+          state_key_down: begin
+             ps2_long_keycode <= 0;
              if (keymap_data == 0) begin
+                // unrecognized key, just go back to idle
                 state <= state_idle;
              end
              else begin
-                // apply modifier keys
-                // meta sends an ESC prefix
-                // control turns off 7th & 6th bits
                 casex (keymap_data[7:6])
                   keycode_regular: begin
+                     // regular key, apply modifiers:
+                     // control turns off 7th & 6th bits
+                     // meta sends an ESC prefix
                      if (meta_pressed) begin
                         data <= esc;
                         valid <= 1;
@@ -191,6 +171,8 @@ module keyboard
                      end
                   end
                   keycode_escaped: begin
+                     // escaped char, send Esc- and then the ascii value
+                     // including the leading 1 (only uppercase and some symbols)
                      data <= esc;
                      valid <= 1;
                      state <= state_esc_char;
