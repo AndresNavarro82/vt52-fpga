@@ -129,8 +129,8 @@ module command_handler
                       8'h09: begin
                          // go until the last tab stop by 8 spaces, then 1 by 1
                          if (new_cursor_x_q < (COLS-9)) begin
-                            new_cursor_x_q <= (new_cursor_x_q + 8) & ~((COLS-1)'h3);
-                            current_char_addr <= (current_char_addr + 8) & ~((COLS-1)'h3);
+                            new_cursor_x_q <= {(new_cursor_x_q[COL_BITS-1:3]+1), 3'b000};
+                            current_char_addr <= {(current_char_addr[ADDR_BITS-1:3]+1), 3'b000};
                             new_cursor_wen_q <= 1;
                          end
                          else if (new_cursor_x_q != (COLS-1)) begin
