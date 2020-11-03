@@ -3,11 +3,89 @@
 //
 
 //
-// no shift or caps lock:
+// The first 3 bits in the address select the keycode
+// long-keycode? capslock-pressed? shift-pressed?
+// The next 8 bits are the keycode (without prefixes)
+//
+// The value stored in memory can be one of 3 cases:
+// 0xxxxxxx: regular key, x's are the ASCII code
+// 10xxxxxx: modifier key, all zeros is caps lock, otherwise one bit set, in order
+//           left shift, left control, left alt, right alt, right control, right shift
+// 11xxxxxx: Escaped ASCII, send Esc and then the ASCII code (including the 1, so only
+//           uppercase letters and a few symbols allowed)
 //
 
 @000
 
+//
+// short keycode, modifiers
+//
+
+// caps lock
+@058
+80
+@158
+80
+@258
+80
+@358
+80
+
+// right shift
+@059
+81
+@159
+81
+@259
+81
+@359
+81
+
+// left shift
+@012
+a0
+@112
+a0
+@212
+a0
+@312
+a0
+
+// left control
+@014
+90
+@114
+90
+@214
+90
+@314
+90
+
+// left alt/meta
+@011
+88
+@111
+88
+@211
+88
+@311
+88
+
+//
+// no shift or caps lock:
+//
+
+
+@000
+// F1 (left blank key)
+@005
+d0
+// F2 (middle blank key)
+@006
+d1
+// F3 (right blank key)
+@004
+d2
 // `
 @00e
 60
@@ -166,7 +244,7 @@
 0d
 
 //
-// only shift
+// short keycode, only shift
 //
 
 @100
@@ -329,7 +407,7 @@
 0d
 
 //
-// only caps lock:
+// short keycode, only caps lock:
 //
 
 @200
@@ -494,7 +572,7 @@
 0d
 
 //
-// shift & caps lock:
+// short keycode shift & caps lock:
 //
 
 @300
@@ -655,3 +733,80 @@
 // return
 @35a
 0d
+
+// long keycodes
+@400
+
+// right control
+@414
+82
+@514
+82
+@614
+82
+@714
+82
+// right alt/meta
+@411
+84
+@511
+84
+@611
+84
+@711
+84
+
+// del
+@471
+7f
+@571
+7f
+@671
+7f
+@771
+7f
+// ins (linefeed)
+@470
+0a
+@570
+0a
+@670
+0a
+@770
+0a
+// up arrow (Esc-A)
+@475
+e1
+@575
+e1
+@675
+e1
+@775
+e1
+// down arrow (Esc-B)
+@472
+e2
+@572
+e2
+@672
+e2
+@772
+e2
+// right arrow (Esc-C)
+@474
+e3
+@574
+e3
+@674
+e3
+@774
+e3
+// left arrow (Esc-D)
+@46b
+e4
+@56b
+e4
+@66b
+e4
+@76b
+e4
