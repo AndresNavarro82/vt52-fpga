@@ -47,7 +47,7 @@ char buffer & char rom info. This is the only module that runs @24Mhz
   char buffer, cursor & scroll registers
 - **cursor.v, cursor_blinker.v, simple_register.v**: cursor & scroll
   registers
-- **tinyfpga_bx_usbserial/**: USB<->Serial bridge (9600 bps)
+- **tinyfpga_bx_usbserial/**: USB<->Serial bridge (undetermined bps)
 - **Makefile**: just do 'make' to compile or 'make prog' to program
 
 ## Connections
