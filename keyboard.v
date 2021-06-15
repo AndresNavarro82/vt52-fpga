@@ -171,7 +171,7 @@ module keyboard
                   end
                   keycode_escaped: begin
                      // escaped char, send Esc- and then the ascii value
-                     // including the leading 1 (only uppercase and some symbols)
+                     // including the leading 1 (only uppercase, lowercase and some symbols allowed)
                      data <= esc;
                      valid <= 1;
                      state <= state_esc_char;

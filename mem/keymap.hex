@@ -12,7 +12,7 @@
 // 10xxxxxx: modifier key, all zeros is caps lock, otherwise one bit set, in order
 //           left shift, left control, left alt, right alt, right control, right shift
 // 11xxxxxx: Escaped ASCII, send Esc and then the ASCII code (including the 1, so only
-//           uppercase letters and a few symbols allowed)
+//           uppercase, lowercase and a few symbols allowed)
 //
 
 @000
@@ -776,37 +776,37 @@ d2
 0a
 // up arrow (Esc-A)
 @475
-e1
+c1
 @575
-e1
+c1
 @675
-e1
+c1
 @775
-e1
+c1
 // down arrow (Esc-B)
 @472
-e2
+c2
 @572
-e2
+c2
 @672
-e2
+c2
 @772
-e2
+c2
 // right arrow (Esc-C)
 @474
-e3
+c3
 @574
-e3
+c3
 @674
-e3
+c3
 @774
-e3
+c3
 // left arrow (Esc-D)
 @46b
-e4
+c4
 @56b
-e4
+c4
 @66b
-e4
+c4
 @76b
-e4
+c4
